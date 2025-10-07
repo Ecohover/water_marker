@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="簡單易用的圖片浮水印工具，支援自訂文字和預設浮水印類型">
+    <meta name="keywords" content="浮水印, 圖片處理, 線上工具, 台灣身分證">
+    <meta name="author" content="Image Watermark Tool">
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="圖片浮水印工具">
+    <meta property="og:description" content="為您的圖片添加浮水印，保護圖片內容">
+    <meta property="og:type" content="website">
+
+    <title>圖片浮水印工具</title>
+
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Header Section -->
+    <header class="bg-primary text-white py-3">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-image me-2"></i>
+                        圖片浮水印工具
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="container my-4">
+        <div class="row">
+            <!-- Upload and Control Panel Column -->
+            <div class="col-lg-4 mb-4">
+                <!-- Upload Zone -->
+                <div id="upload-section" class="mb-4">
+                    <div class="card border-2 border-dashed h-100">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-cloud-upload fs-1 text-muted mb-3"></i>
+                            <h5 class="card-title">上傳圖片</h5>
+                            <p class="card-text text-muted">拖放圖片或點擊選擇</p>
+                            <button type="button" class="btn btn-primary btn-lg">
+                                <i class="bi bi-folder2-open me-2"></i>
+                                選擇圖片
+                            </button>
+                            <input type="file" id="file-input" class="d-none" accept="image/*">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Control Panel -->
+                <div id="control-panel" class="d-none">
+                    <!-- Watermark Type Selection -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">浮水印類型</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="watermark-type" id="preset-type"
+                                    value="preset" checked>
+                                <label class="btn btn-outline-primary" for="preset-type">預設類型</label>
+
+                                <input type="radio" class="btn-check" name="watermark-type" id="custom-type"
+                                    value="custom">
+                                <label class="btn btn-outline-primary" for="custom-type">自訂文字</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preset Watermark Options -->
+                    <div class="card mb-3" id="preset-options">
+                        <div class="card-header">
+                            <h6 class="mb-0">預設浮水印</h6>
+                        </div>
+                        <div class="card-body">
+                            <select class="form-select" id="preset-select">
+                                <option value="taiwan-id">僅供身分驗證使用</option>
+                                <option value="document-copy">僅供文件備份使用</option>
+                                <option value="sample">SAMPLE</option>
+                            </select>
+                            <small class="form-text text-muted mt-2">
+                                選擇預設的浮水印類型，系統會自動套用最佳設定
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Custom Text Input -->
+                    <div class="card mb-3 d-none" id="custom-options">
+                        <div class="card-header">
+                            <h6 class="mb-0">自訂文字</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-type"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="custom-text" 
+                                       placeholder="輸入浮水印文字"
+                                       maxlength="50"
+                                       autocomplete="off">
+                                <div class="invalid-feedback" id="custom-text-feedback"></div>
+                                <div class="valid-feedback" id="custom-text-success"></div>
+                            </div>
+                            <div class="form-text mt-2" id="custom-text-help">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    建議使用簡短文字以獲得最佳效果 (最多50字元)
+                                </small>
+                            </div>
+                            <div class="mt-2" id="text-length-indicator">
+                                <small class="text-muted">
+                                    字元數: <span id="text-length-count">0</span>/50
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Style Controls -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">樣式設定</h6>
+                        </div>
+                        <div class="card-body">
+                            <!-- Opacity Control -->
+                            <div class="mb-3">
+                                <label for="opacity-range" class="form-label">
+                                    透明度: <span id="opacity-value">50%</span>
+                                </label>
+                                <input type="range" class="form-range" id="opacity-range" min="10" max="100" value="50">
+                            </div>
+
+                            <!-- Font Size Control -->
+                            <div class="mb-3">
+                                <label for="fontsize-range" class="form-label">
+                                    文字大小: <span id="fontsize-value">24px</span>
+                                </label>
+                                <input type="range" class="form-range" id="fontsize-range" min="12" max="72" value="24">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Position Controls -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">位置設定</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-top-left"
+                                        value="top-left">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-top-left">
+                                        <i class="bi bi-arrow-up-left"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-top-center"
+                                        value="top-center">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-top-center">
+                                        <i class="bi bi-arrow-up"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-top-right"
+                                        value="top-right">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-top-right">
+                                        <i class="bi bi-arrow-up-right"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-center-left"
+                                        value="center-left">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-center-left">
+                                        <i class="bi bi-arrow-left"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-center"
+                                        value="center">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-center">
+                                        <i class="bi bi-plus"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-center-right"
+                                        value="center-right">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-center-right">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-bottom-left"
+                                        value="bottom-left">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-bottom-left">
+                                        <i class="bi bi-arrow-down-left"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-bottom-center"
+                                        value="bottom-center">
+                                    <label class="btn btn-outline-secondary w-100" for="pos-bottom-center">
+                                        <i class="bi bi-arrow-down"></i>
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="position" id="pos-bottom-right"
+                                        value="bottom-right" checked>
+                                    <label class="btn btn-outline-secondary w-100" for="pos-bottom-right">
+                                        <i class="bi bi-arrow-down-right"></i>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success btn-lg" id="download-btn" disabled>
+                            <i class="bi bi-download me-2"></i>
+                            下載圖片
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Area Column -->
+            <div class="col-lg-8">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h6 class="mb-0">預覽</h6>
+                    </div>
+                    <div class="card-body d-flex align-items-center justify-content-center" id="preview-area">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-image fs-1 mb-3"></i>
+                            <p>請先上傳圖片</p>
+                        </div>
+                        <canvas id="preview-canvas" class="d-none img-fluid"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light py-3 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col text-center text-muted">
+                    <small>&copy; 2024 圖片浮水印工具. 簡單易用的線上浮水印工具.</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Spinner (Hidden by default) -->
+    <div id="loading-spinner" class="position-fixed top-50 start-50 translate-middle d-none">
+        <div class="card shadow-lg border-0">
+            <div class="card-body text-center p-4">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">載入中...</span>
+                </div>
+                <h6 class="card-title mb-2">處理中</h6>
+                <p class="card-text text-muted small mb-0">
+                    <span class="loading-message">載入中...</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+
+    <!-- Custom JavaScript -->
+    <script src="js/app.js"></script>
+</body>
+
+</html>

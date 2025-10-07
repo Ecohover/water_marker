@@ -1,0 +1,815 @@
+/* 圖片浮水印工具 - 自訂樣式 */
+
+/* 全域樣式 */
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* 上傳區域樣式 */
+#upload-section .card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+#upload-section .card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+#upload-section .card.drag-over {
+    border-color: var(--primary-color);
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* 預覽區域樣式 */
+#preview-area {
+    min-height: 400px;
+    background-color: #ffffff;
+    border-radius: 0.375rem;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#preview-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    cursor: crosshair;
+    transition: all 0.3s ease;
+    object-fit: contain;
+}
+
+/* 預覽區域響應式調整 */
+.mobile-layout #preview-area {
+    min-height: 250px;
+    padding: 1rem;
+}
+
+.tablet-layout #preview-area {
+    min-height: 350px;
+    padding: 1.5rem;
+}
+
+.desktop-layout #preview-area {
+    min-height: 400px;
+    padding: 2rem;
+}
+
+/* 圖片縮放和居中功能 */
+.image-container {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.image-zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.image-container:hover .image-zoom-controls {
+    opacity: 1;
+}
+
+.zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.zoom-btn:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+}
+
+/* 控制面板樣式 */
+.card-header {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-bottom: 1px solid rgba(13, 110, 253, 0.2);
+}
+
+.card-header h6 {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* 自訂文字輸入樣式增強 */
+#custom-options .input-group {
+    position: relative;
+}
+
+#custom-options .form-control {
+    transition: all 0.3s ease;
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+#custom-options .form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    border-color: var(--primary-color);
+}
+
+#custom-options .form-control.is-valid {
+    border-color: var(--success-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='m2.3 6.73.94-.94 1.44 1.44L7.4 4.5l.94.94L4.66 9.12z'/%3e%3c/svg%3e");
+}
+
+#custom-options .form-control.is-invalid {
+    border-color: var(--danger-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 4.6 2.4 2.4m0-2.4L5.8 7'/%3e%3c/svg%3e");
+}
+
+#custom-options .input-group-text {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-color: rgba(13, 110, 253, 0.2);
+    color: var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+#custom-options .form-control:focus + .input-group-text,
+#custom-options .input-group:focus-within .input-group-text {
+    border-color: var(--primary-color);
+    background-color: rgba(13, 110, 253, 0.15);
+}
+
+/* 文字長度指示器樣式 */
+#text-length-indicator {
+    position: relative;
+    padding: 0.25rem 0;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+#text-length-indicator.text-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #856404;
+}
+
+#text-length-indicator.text-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--danger-color);
+}
+
+/* 驗證回饋訊息樣式 */
+.invalid-feedback {
+    display: block;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    color: var(--danger-color);
+}
+
+.valid-feedback {
+    display: block;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    color: var(--success-color);
+}
+
+/* 幫助文字樣式 */
+#custom-text-help {
+    transition: color 0.3s ease;
+}
+
+#custom-text-help.text-danger {
+    color: var(--danger-color) !important;
+}
+
+#custom-text-help .bi {
+    transition: transform 0.3s ease;
+}
+
+#custom-text-help.text-danger .bi {
+    transform: scale(1.1);
+}
+
+/* 範圍滑桿樣式 */
+.form-range::-webkit-slider-thumb {
+    background-color: var(--primary-color);
+}
+
+.form-range::-moz-range-thumb {
+    background-color: var(--primary-color);
+    border: none;
+}
+
+/* 位置按鈕網格樣式 */
+.btn-outline-secondary:checked + label,
+.btn-outline-secondary.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* 載入動畫樣式 */
+#loading-spinner {
+    z-index: 9999;
+}
+
+#loading-spinner .card {
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 1rem;
+    min-width: 200px;
+}
+
+#loading-spinner .spinner-border {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 載入狀態時的上傳區域樣式 */
+#upload-section.loading {
+    pointer-events: none;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+/* 響應式設計 */
+@media (max-width: 767.98px) {
+    /* 手機版樣式調整 */
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .btn-lg {
+        min-height: 44px; /* 觸控友善的最小高度 */
+    }
+    
+    #preview-area {
+        min-height: 250px;
+        padding: 0.5rem;
+    }
+    
+    #preview-canvas {
+        max-height: 300px;
+        border-radius: 0.25rem;
+    }
+    
+    /* 位置按鈕在手機上更大 */
+    .btn-outline-secondary {
+        min-height: 44px;
+        font-size: 1.1rem;
+    }
+    
+    /* 控制面板在手機上的間距調整 */
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    /* 縮放控制在手機上的調整 */
+    .image-zoom-controls {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .zoom-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+    /* 平板版樣式調整 */
+    #preview-area {
+        min-height: 350px;
+        padding: 1rem;
+    }
+    
+    #preview-canvas {
+        max-height: 450px;
+    }
+    
+    .image-zoom-controls {
+        opacity: 0.8;
+    }
+    
+    .zoom-btn {
+        width: 36px;
+        height: 36px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    /* 超小螢幕樣式 */
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-group .btn {
+        font-size: 0.875rem;
+    }
+    
+    /* 位置網格在超小螢幕上的調整 */
+    .row.g-2 > .col-4 {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* 預覽區域在超小螢幕上的調整 */
+    #preview-area {
+        min-height: 200px;
+        padding: 0.25rem;
+    }
+    
+    #preview-canvas {
+        max-height: 250px;
+    }
+}
+
+/* 嵌入模式樣式 */
+.embedded-mode header,
+.embedded-mode footer {
+    display: none;
+}
+
+.embedded-mode main {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.embedded-mode .container {
+    max-width: 100%;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+/* 動畫效果 */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 錯誤輸入震動動畫 */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+/* 拖拽狀態樣式 */
+.dragging {
+    cursor: grabbing !important;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.drag-handle {
+    cursor: grab;
+}
+
+/* Canvas 拖拽游標樣式 */
+#preview-canvas {
+    cursor: crosshair;
+    transition: cursor 0.2s ease;
+}
+
+#preview-canvas:hover {
+    cursor: grab;
+}
+
+#preview-canvas.dragging {
+    cursor: grabbing !important;
+}
+
+/* 拖拽時的視覺回饋 */
+.dragging #preview-canvas {
+    transform: scale(1.01);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* 拖拽邊界指示器 */
+.drag-boundary-indicator {
+    position: absolute;
+    border: 2px dashed rgba(13, 110, 253, 0.5);
+    background-color: rgba(13, 110, 253, 0.1);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.dragging .drag-boundary-indicator {
+    opacity: 1;
+}
+
+/* 拖拽提示樣式 */
+.drag-hint {
+    animation: dragHintFadeIn 0.3s ease-out;
+}
+
+@keyframes dragHintFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 拖拽邊界指示器動畫 */
+.drag-boundary-indicator {
+    animation: boundaryIndicatorPulse 2s ease-in-out infinite;
+}
+
+@keyframes boundaryIndicatorPulse {
+    0%, 100% {
+        border-width: 2px;
+        opacity: 0.7;
+    }
+    50% {
+        border-width: 3px;
+        opacity: 1;
+    }
+}
+
+/* 拖拽完成動畫 */
+@keyframes dragCompleteScale {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.drag-complete-animation {
+    animation: dragCompleteScale 0.3s ease-out;
+}
+
+/* 觸控裝置拖拽樣式 */
+@media (hover: none) and (pointer: coarse) {
+    #preview-canvas {
+        cursor: default;
+    }
+    
+    .dragging #preview-canvas {
+        transform: scale(1.02);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+    }
+    
+    /* 觸控拖拽時的額外視覺回饋 */
+    .dragging::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.1);
+        z-index: 1;
+        pointer-events: none;
+    }
+    
+    /* 觸控裝置的拖拽提示樣式 */
+    .drag-hint {
+        font-size: 1rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.75rem;
+    }
+    
+    /* 觸控裝置的邊界指示器 */
+    .drag-boundary-indicator {
+        border-width: 3px;
+        border-radius: 0.5rem;
+    }
+}
+
+/* 高對比模式下的拖拽樣式 */
+@media (prefers-contrast: high) {
+    .drag-boundary-indicator {
+        border-width: 3px;
+        border-color: #000 !important;
+        background-color: rgba(255, 255, 255, 0.8) !important;
+    }
+    
+    .drag-hint {
+        background: #000 !important;
+        color: #fff !important;
+        border: 2px solid #fff;
+    }
+}
+
+/* 減少動畫偏好下的拖拽樣式 */
+@media (prefers-reduced-motion: reduce) {
+    .drag-boundary-indicator {
+        animation: none;
+    }
+    
+    .drag-hint {
+        animation: none;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+    
+    .dragging #preview-canvas {
+        transition: none;
+        transform: none;
+    }
+}
+
+/* 錯誤和成功狀態樣式 */
+.alert {
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.alert-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: var(--success-color);
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--danger-color);
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #856404;
+}
+
+/* 工具提示樣式 */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+/* Toast 訊息樣式 */
+.toast-container {
+    z-index: 9999;
+}
+
+.toast {
+    min-width: 300px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.toast .toast-body {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* 自訂文字輸入的特殊狀態樣式 */
+#custom-options .alert.empty-text-hint {
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 輸入框聚焦時的增強效果 */
+#custom-options .form-control:focus {
+    transform: scale(1.01);
+    transition: all 0.3s ease;
+}
+
+#custom-options .form-control:not(:focus) {
+    transform: scale(1);
+    transition: all 0.3s ease;
+}
+
+/* 預覽更新指示器樣式 */
+.preview-updating {
+    backdrop-filter: blur(2px);
+    border-radius: 0.375rem;
+    animation: fadeIn 0.2s ease-in;
+}
+
+.preview-updating .spinner-border-sm {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+/* 空文字預覽提示樣式 */
+.empty-preview-hint {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 0.5rem;
+    padding: 2rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.3s ease-in;
+    max-width: 300px;
+}
+
+.empty-preview-hint .bi {
+    opacity: 0.6;
+}
+
+.empty-preview-hint h6 {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.empty-preview-hint p {
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+/* 預覽狀態指示器樣式 */
+.card-header .text-success {
+    font-weight: 500;
+}
+
+.card-header .text-muted {
+    font-weight: 400;
+}
+
+.card-header .bi {
+    font-size: 0.875rem;
+}
+
+/* 即時預覽動畫效果 */
+@keyframes previewUpdate {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+}
+
+.preview-updating-animation {
+    animation: previewUpdate 1s ease-in-out infinite;
+}
+
+/* 空文字狀態樣式 */
+#custom-options.empty-text-state {
+    border: 2px dashed #ffc107;
+    border-radius: 0.5rem;
+    background-color: rgba(255, 193, 7, 0.05);
+    transition: all 0.3s ease;
+}
+
+#custom-options.empty-text-state .card-header {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-bottom-color: rgba(255, 193, 7, 0.2);
+}
+
+#custom-options.empty-text-state .card-header h6 {
+    color: #856404;
+}
+
+/* 下載按鈕狀態樣式 */
+#download-btn:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+#download-btn:disabled:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    transform: none;
+}
+
+/* 即時回饋動畫 */
+.form-text.text-success {
+    animation: successPulse 0.5s ease-in-out;
+}
+
+.form-text.text-warning {
+    animation: warningPulse 0.5s ease-in-out;
+}
+
+.form-text.text-primary {
+    animation: infoPulse 0.5s ease-in-out;
+}
+
+@keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+@keyframes warningPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+@keyframes infoPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* 無障礙設計 */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Focus 樣式增強 */
+.btn:focus,
+.form-control:focus,
+.form-select:focus,
+.form-range:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* 高對比模式支援 */
+@media (prefers-contrast: high) {
+    .card {
+        border-width: 2px;
+    }
+    
+    .btn-outline-secondary {
+        border-width: 2px;
+    }
+}
+
+/* 減少動畫偏好支援 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
