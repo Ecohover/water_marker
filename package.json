@@ -1,0 +1,43 @@
+{
+  "name": "image-watermark-tool",
+  "version": "1.0.0",
+  "description": "圖片浮水印工具 - 靜態網頁應用程式",
+  "main": "index.html",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
+  },
+  "keywords": [
+    "watermark",
+    "image",
+    "javascript",
+    "canvas",
+    "bootstrap"
+  ],
+  "author": "Image Watermark Tool",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/js/test-setup.js"],
+    "collectCoverageFrom": [
+      "js/app.js",
+      "!js/app.test.js",
+      "!js/test-setup.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "testMatch": [
+      "**/*.test.js"
+    ],
+    "verbose": true
+  }
+}
