@@ -823,15 +823,17 @@ body {
     }
 }
 
-/* 動畫效果 */
+/* 優化的動畫效果 - UX 增強版本 */
+
+/* 基礎動畫 */
 .fade-in {
-    animation: fadeIn 0.3s ease-in;
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(12px);
     }
     to {
         opacity: 1;
@@ -840,17 +842,380 @@ body {
 }
 
 .slide-up {
-    animation: slideUp 0.3s ease-out;
+    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes slideUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(24px);
     }
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* 新增的 UX 動畫 */
+.slide-in-left {
+    animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.slide-in-right {
+    animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.bounce-in {
+    animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 微互動動畫 */
+.pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.glow {
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 0 5px rgba(13, 110, 253, 0.5);
+    }
+    to {
+        box-shadow: 0 0 20px rgba(13, 110, 253, 0.8), 0 0 30px rgba(13, 110, 253, 0.6);
+    }
+}
+
+/* 進度動畫 */
+.progress-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* 載入動畫增強 */
+.loading-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.loading-dots::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: loadingDots 1.4s infinite ease-in-out both;
+}
+
+.loading-dots::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: loadingDots 1.4s infinite ease-in-out both;
+    animation-delay: -0.32s;
+    margin-right: 4px;
+}
+
+@keyframes loadingDots {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* 狀態轉換動畫 */
+.state-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.state-success {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+    border-color: var(--success-color) !important;
+    color: var(--success-color) !important;
+    transform: scale(1.02);
+}
+
+.state-error {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    border-color: var(--danger-color) !important;
+    color: var(--danger-color) !important;
+    animation: shake 0.5s ease-in-out;
+}
+
+.state-processing {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.state-processing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(13, 110, 253, 0.2),
+        transparent
+    );
+    animation: processing 2s infinite;
+}
+
+@keyframes processing {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* 互動回饋動畫 */
+.interactive-feedback {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.interactive-feedback::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.interactive-feedback:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* 懸停效果增強 */
+.enhanced-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.enhanced-hover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.enhanced-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.enhanced-hover:hover::after {
+    opacity: 1;
+}
+
+/* 焦點指示器增強 */
+.focus-enhanced:focus {
+    outline: none;
+    box-shadow: 
+        0 0 0 3px rgba(13, 110, 253, 0.25),
+        0 0 0 1px rgba(13, 110, 253, 0.5);
+    transform: scale(1.02);
+}
+
+/* 無障礙動畫控制 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .pulse,
+    .glow,
+    .progress-shimmer::before,
+    .loading-dots::before,
+    .loading-dots::after,
+    .state-processing::before {
+        animation: none !important;
+    }
+}
+
+/* 高對比模式支援 */
+@media (prefers-contrast: high) {
+    .fade-in,
+    .slide-up,
+    .slide-in-left,
+    .slide-in-right,
+    .scale-in,
+    .bounce-in {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+    
+    .enhanced-hover:hover {
+        background-color: HighlightText;
+        color: Highlight;
+    }
+    
+    .focus-enhanced:focus {
+        outline: 3px solid Highlight;
+        outline-offset: 2px;
+        box-shadow: none;
+    }
+}
+
+/* 觸控裝置優化 */
+@media (hover: none) and (pointer: coarse) {
+    .enhanced-hover:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .interactive-feedback:active {
+        transform: scale(0.98);
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+}
+
+/* 暗色主題動畫調整 */
+@media (prefers-color-scheme: dark) {
+    .interactive-feedback::before {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .enhanced-hover::after {
+        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+    }
+    
+    .glow {
+        animation: glowDark 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes glowDark {
+        from {
+            box-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
+        }
+        to {
+            box-shadow: 0 0 15px rgba(13, 110, 253, 0.6), 0 0 25px rgba(13, 110, 253, 0.4);
+        }
     }
 }
 
@@ -1304,7 +1669,7 @@ body {
     100% { transform: scale(1); }
 }
 
-/* 無障礙設計 */
+/* 無障礙設計增強版本 */
 .visually-hidden {
     position: absolute !important;
     width: 1px !important;
@@ -1317,12 +1682,755 @@ body {
     border: 0 !important;
 }
 
-/* Focus 樣式增強 */
+.visually-hidden-focusable:not(:focus):not(:focus-within) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* 跳過連結 */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: var(--primary-color);
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 10000;
+    font-weight: 600;
+    transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+    top: 6px;
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+/* Focus 樣式大幅增強 */
 .btn:focus,
 .form-control:focus,
 .form-select:focus,
 .form-range:focus {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+
+/* 高對比焦點指示器 */
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.form-range:focus-visible {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 2px;
+    box-shadow: 
+        0 0 0 0.25rem rgba(13, 110, 253, 0.25),
+        inset 0 0 0 2px white;
+}
+
+/* 鍵盤導航增強 */
+.keyboard-navigation *:focus {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 2px;
+    z-index: 1000;
+    position: relative;
+}
+
+/* 螢幕閱讀器專用內容 */
+.sr-only-content {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.sr-only-content:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    background: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+
+/* 狀態公告區域 */
+.status-announcer {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* 進度指示器無障礙增強 */
+.progress-accessible {
+    position: relative;
+}
+
+.progress-accessible::after {
+    content: attr(data-progress-text);
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* 互動元素最小尺寸保證 */
+.interactive-element {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 色彩對比增強 */
+.high-contrast {
+    background-color: white !important;
+    color: black !important;
+    border: 2px solid black !important;
+}
+
+.high-contrast:hover {
+    background-color: black !important;
+    color: white !important;
+}
+
+.high-contrast:focus {
+    outline: 4px solid orange !important;
+    outline-offset: 2px !important;
+}
+
+/* 動作確認對話框 */
+.confirmation-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 2px solid var(--primary-color);
+    border-radius: 0.5rem;
+    padding: 2rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: auto;
+}
+
+.confirmation-dialog:focus {
+    outline: none;
+}
+
+.confirmation-dialog .dialog-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.confirmation-dialog .dialog-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+/* 載入狀態無障礙增強 */
+.loading-accessible {
+    position: relative;
+}
+
+.loading-accessible::before {
+    content: '載入中，請稍候...';
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* 錯誤訊息無障礙增強 */
+.error-message {
+    role: alert;
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 2px solid var(--danger-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 1rem 0;
+    color: var(--danger-color);
+}
+
+.error-message::before {
+    content: '錯誤：';
+    font-weight: 600;
+    margin-right: 0.5rem;
+}
+
+/* 成功訊息無障礙增強 */
+.success-message {
+    role: status;
+    background-color: rgba(25, 135, 84, 0.1);
+    border: 2px solid var(--success-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 1rem 0;
+    color: var(--success-color);
+}
+
+.success-message::before {
+    content: '成功：';
+    font-weight: 600;
+    margin-right: 0.5rem;
+}
+
+/* 表單驗證無障礙增強 */
+.form-field-error {
+    border-color: var(--danger-color) !important;
+    background-color: rgba(220, 53, 69, 0.05) !important;
+}
+
+.form-field-error:focus {
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+    outline: 2px solid var(--danger-color) !important;
+    outline-offset: 2px !important;
+}
+
+.field-error-message {
+    color: var(--danger-color);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.field-error-message::before {
+    content: '⚠️';
+    font-size: 1rem;
+}
+
+/* 工具提示無障礙增強 */
+.tooltip-accessible {
+    position: relative;
+}
+
+.tooltip-accessible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+}
+
+.tooltip-accessible:hover::after,
+.tooltip-accessible:focus::after {
+    opacity: 1;
+}
+
+/* 鍵盤快捷鍵提示 */
+.keyboard-shortcut {
+    font-family: monospace;
+    background-color: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+}
+
+/* 語言切換支援 */
+[lang="en"] .chinese-only {
+    display: none;
+}
+
+[lang="zh-TW"] .english-only {
+    display: none;
+}
+
+/* RTL 語言支援 */
+[dir="rtl"] {
+    text-align: right;
+}
+
+[dir="rtl"] .slide-in-left {
+    animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[dir="rtl"] .slide-in-right {
+    animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 載入效能優化 */
+.lazy-load {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.lazy-load.loaded {
+    opacity: 1;
+}
+
+/* 關鍵資源優先載入 */
+.critical-resource {
+    font-display: swap;
+}
+
+/* 非關鍵資源延遲載入 */
+.non-critical {
+    loading: lazy;
+}
+
+/* 預載入提示 */
+.preload-hint::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: preloadShimmer 2s infinite;
+    pointer-events: none;
+}
+
+@keyframes preloadShimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* 效能監控視覺化 */
+.performance-indicator {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-family: monospace;
+    font-size: 0.75rem;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.performance-indicator.visible {
+    opacity: 1;
+}
+
+.performance-indicator.good {
+    border-left: 4px solid #28a745;
+}
+
+.performance-indicator.warning {
+    border-left: 4px solid #ffc107;
+}
+
+.performance-indicator.poor {
+    border-left: 4px solid #dc3545;
+}
+
+/* 拖放回饋樣式 */
+.drag-feedback {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.drag-feedback.visible {
+    opacity: 1;
+}
+
+.drag-feedback.success {
+    background: rgba(25, 135, 84, 0.95);
+}
+
+.drag-feedback.warning {
+    background: rgba(255, 193, 7, 0.95);
+    color: #000;
+}
+
+.drag-feedback.error {
+    background: rgba(220, 53, 69, 0.95);
+}
+
+/* 點擊回饋效果 */
+.clicked {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+.ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* 載入狀態樣式增強 */
+.loading-state {
+    position: relative;
+    overflow: hidden;
+}
+
+.loading-state::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    animation: loading-sweep 2s infinite;
+}
+
+@keyframes loading-sweep {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* 狀態指示器 */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-indicator.online {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: var(--success-color);
+}
+
+.status-indicator.offline {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--danger-color);
+}
+
+.status-indicator.processing {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+}
+
+.status-indicator::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+.status-indicator.processing::before {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* 進度環 */
+.progress-ring {
+    width: 60px;
+    height: 60px;
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    fill: none;
+    stroke: #e9ecef;
+    stroke-width: 4;
+}
+
+.progress-ring-progress {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 0 100;
+    transition: stroke-dasharray 0.3s ease;
+}
+
+/* 工具提示增強 */
+.tooltip-enhanced {
+    position: relative;
+    cursor: help;
+}
+
+.tooltip-enhanced::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 1000;
+    margin-bottom: 0.5rem;
+}
+
+.tooltip-enhanced::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+}
+
+.tooltip-enhanced:hover::before,
+.tooltip-enhanced:focus::before,
+.tooltip-enhanced:hover::after,
+.tooltip-enhanced:focus::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px);
+}
+
+/* 通知系統 */
+.notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10000;
+    max-width: 400px;
+    width: 100%;
+}
+
+.notification {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-left: 4px solid var(--primary-color);
+    animation: slideInRight 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.notification.success {
+    border-left-color: var(--success-color);
+}
+
+.notification.warning {
+    border-left-color: var(--warning-color);
+}
+
+.notification.error {
+    border-left-color: var(--danger-color);
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.notification-title {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: var(--secondary-color);
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-close:hover {
+    color: var(--dark-color);
+}
+
+.notification-body {
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.notification-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--primary-color);
+    animation: notificationProgress 5s linear;
+}
+
+@keyframes notificationProgress {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+/* 手勢支援 */
+.gesture-area {
+    touch-action: pan-y pinch-zoom;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* 語音控制指示器 */
+.voice-control-indicator {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    width: 60px;
+    height: 60px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+.voice-control-indicator.active {
+    opacity: 1;
+    transform: scale(1);
+    animation: pulse 2s infinite;
+}
+
+.voice-control-indicator.listening {
+    background: var(--danger-color);
+    animation: pulse 1s infinite;
+}
+
+/* 深色主題支援 */
+@media (prefers-color-scheme: dark) {
+    .notification {
+        background: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .notification-title {
+        color: #f7fafc;
+    }
+    
+    .notification-body {
+        color: #cbd5e0;
+    }
+    
+    .drag-feedback {
+        background: rgba(45, 55, 72, 0.95);
+    }
+    
+    .tooltip-enhanced::before {
+        background: rgba(45, 55, 72, 0.95);
+    }
+    
+    .tooltip-enhanced::after {
+        border-top-color: rgba(45, 55, 72, 0.95);
+    }
+}
+
+/* 列印樣式 */
+@media print {
+    .skip-link,
+    .performance-indicator,
+    .drag-feedback,
+    .notification-container,
+    .voice-control-indicator {
+        display: none !important;
+    }
+    
+    .enhanced-hover,
+    .interactive-feedback {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
 }
 
 /* 高對比模式支援 */

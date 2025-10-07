@@ -190,3 +190,16 @@ coverage/
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+# Test files and development artifacts (not needed for GitHub Pages)
+# Note: These files are kept in the repository for development but excluded from docs/
+js/*.test.js
+js/test-*.js
+test-results.md
+*.backup
+
+# Development utilities
+sync-to-docs.js
+
+# Keep only production files for GitHub Pages
+# The docs/ folder contains the clean production version

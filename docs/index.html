@@ -27,6 +27,12 @@
 </head>
 
 <body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#main-content" class="skip-link">跳到主要內容</a>
+    
+    <!-- Status Announcer for Screen Readers -->
+    <div id="status-announcer" class="status-announcer" aria-live="polite" aria-atomic="true"></div>
+    
     <!-- Header Section -->
     <header class="bg-primary text-white py-3">
         <div class="container">
@@ -42,7 +48,7 @@
     </header>
 
     <!-- Main Content Area -->
-    <main class="container my-4">
+    <main id="main-content" class="container my-4" tabindex="-1">
         <div class="row">
             <!-- Upload and Control Panel Column -->
             <div class="col-lg-4 mb-4">
