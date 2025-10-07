@@ -36,15 +36,1602 @@ class WatermarkApp {
     }
 
     /**
+     * 設定錯誤處理系統
+     */
+    setupErrorHandling() {
+        // 全域錯誤處理器
+        window.addEventListener('error', (event) => {
+            this.handleGlobalError('JavaScript 錯誤', event.error, {
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno
+            });
+        });
+
+        // Promise 拒絕處理器
+        window.addEventListener('unhandledrejection', (event) => {
+            this.handleGlobalError('Promise 拒絕', event.reason);
+            event.preventDefault();
+        });
+
+        // 錯誤狀態管理
+        this.errorState = {
+            hasError: false,
+            lastError: null,
+            errorCount: 0,
+            retryCount: 0,
+            maxRetries: 3
+        };
+
+        console.log('錯誤處理系統已設定');
+    }
+
+    /**
+     * 處理全域錯誤
+     */
+    handleGlobalError(type, error, details = {}) {
+        console.error(`${type}:`, error, details);
+        
+        this.errorState.hasError = true;
+        this.errorState.lastError = error;
+        this.errorState.errorCount++;
+
+        // 顯示使用者友善的錯誤訊息
+        this.showErrorAlert('系統錯誤', '發生未預期的錯誤，請重新整理頁面或稍後再試。', 'danger', {
+            showRetry: true,
+            retryAction: () => window.location.reload()
+        });
+
+        // 記錄錯誤到本地儲存以供除錯
+        this.logErrorToStorage(type, error, details);
+    }
+
+    /**
+     * 處理關鍵錯誤
+     */
+    handleCriticalError(message, error) {
+        console.error('關鍵錯誤:', message, error);
+        
+        this.errorState.hasError = true;
+        this.errorState.lastError = error;
+
+        // 顯示關鍵錯誤訊息
+        this.showErrorAlert('系統無法啟動', message + '，請重新整理頁面。', 'danger', {
+            persistent: true,
+            showRetry: true,
+            retryAction: () => window.location.reload()
+        });
+
+        // 停用所有功能
+        this.disableAllFeatures();
+    }
+
+    /**
+     * 處理檔案上傳錯誤
+     */
+    handleFileError(error, file = null) {
+        console.error('檔案錯誤:', error, file);
+
+        let message = '檔案處理失敗';
+        let suggestions = [];
+
+        if (error.name === 'FileTypeError') {
+            message = '不支援的檔案格式';
+            suggestions = [
+                '請選擇 JPG、PNG 或 GIF 格式的圖片',
+                '確認檔案副檔名正確'
+            ];
+        } else if (error.name === 'FileSizeError') {
+            message = '檔案過大';
+            suggestions = [
+                '請選擇小於 10MB 的圖片',
+                '可以使用圖片壓縮工具減小檔案大小'
+            ];
+        } else if (error.name === 'FileReadError') {
+            message = '檔案讀取失敗';
+            suggestions = [
+                '請確認檔案沒有損壞',
+                '嘗試重新選擇檔案'
+            ];
+        }
+
+        this.showErrorAlert(message, suggestions.join('，'), 'warning', {
+            showRetry: true,
+            retryAction: () => this.elements.fileInput.click()
+        });
+
+        // 重置上傳狀態
+        this.resetUploadState();
+    }
+
+    /**
+     * 處理圖片處理錯誤
+     */
+    handleImageProcessingError(error, context = '') {
+        console.error('圖片處理錯誤:', error, context);
+
+        let message = '圖片處理失敗';
+        let suggestions = [];
+
+        if (error.name === 'CanvasError') {
+            message = 'Canvas 渲染失敗';
+            suggestions = [
+                '圖片可能過大或格式不相容',
+                '嘗試使用較小的圖片'
+            ];
+        } else if (error.name === 'MemoryError') {
+            message = '記憶體不足';
+            suggestions = [
+                '圖片尺寸過大',
+                '請使用較小的圖片或關閉其他應用程式'
+            ];
+        } else if (error.name === 'WatermarkError') {
+            message = '浮水印生成失敗';
+            suggestions = [
+                '請檢查浮水印設定',
+                '嘗試使用不同的浮水印文字或位置'
+            ];
+        }
+
+        this.showErrorAlert(message, suggestions.join('，'), 'warning', {
+            showRetry: true,
+            retryAction: () => this.retryImageProcessing()
+        });
+    }
+
+    /**
+     * 處理下載錯誤
+     */
+    handleDownloadError(error, format = '') {
+        console.error('下載錯誤:', error, format);
+
+        let message = '下載失敗';
+        let suggestions = [];
+
+        if (error.name === 'BrowserCompatibilityError') {
+            message = '瀏覽器不支援直接下載';
+            suggestions = [
+                '請使用較新版本的瀏覽器',
+                '或右鍵點擊圖片選擇「另存圖片」'
+            ];
+        } else if (error.name === 'FileGenerationError') {
+            message = '圖片生成失敗';
+            suggestions = [
+                '請檢查圖片和浮水印設定',
+                '嘗試重新生成圖片'
+            ];
+        }
+
+        this.showErrorAlert(message, suggestions.join('，'), 'danger', {
+            showRetry: true,
+            retryAction: () => this.retryDownload(format)
+        });
+
+        // 隱藏下載狀態指示器
+        this.hideDownloadStatus();
+    }
+
+    /**
+     * 處理網路錯誤
+     */
+    handleNetworkError(error, context = '') {
+        console.error('網路錯誤:', error, context);
+
+        this.showErrorAlert('網路連線問題', '請檢查網路連線並重試。', 'warning', {
+            showRetry: true,
+            retryAction: () => this.retryLastAction()
+        });
+    }
+
+    /**
+     * 處理瀏覽器相容性錯誤
+     */
+    handleCompatibilityError(feature, error) {
+        console.error('相容性錯誤:', feature, error);
+
+        let message = `您的瀏覽器不支援 ${feature} 功能`;
+        let suggestions = [];
+
+        if (feature === 'Canvas') {
+            suggestions = [
+                '請使用支援 HTML5 Canvas 的現代瀏覽器',
+                '建議使用 Chrome、Firefox、Safari 或 Edge'
+            ];
+        } else if (feature === 'File API') {
+            suggestions = [
+                '請使用支援檔案上傳的現代瀏覽器',
+                '或嘗試重新整理頁面'
+            ];
+        }
+
+        this.showErrorAlert(message, suggestions.join('，'), 'warning', {
+            persistent: true
+        });
+
+        // 提供降級功能
+        this.enableFallbackFeatures(feature);
+    }
+
+    /**
+     * 顯示錯誤警告
+     */
+    showErrorAlert(title, message, type = 'danger', options = {}) {
+        const {
+            persistent = false,
+            showRetry = false,
+            retryAction = null,
+            dismissible = true,
+            autoHide = !persistent,
+            hideDelay = 5000
+        } = options;
+
+        // 移除現有的錯誤警告
+        this.hideErrorAlerts();
+
+        // 創建錯誤警告元素
+        const alertId = `error-alert-${Date.now()}`;
+        const alertHtml = `
+            <div id="${alertId}" class="alert alert-${type} ${dismissible ? 'alert-dismissible' : ''} fade show" role="alert">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-${this.getAlertIcon(type)} me-3 mt-1 flex-shrink-0"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="alert-heading mb-2">${title}</h6>
+                        <p class="mb-0">${message}</p>
+                        ${showRetry ? `
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-${type}" onclick="app.handleRetryAction('${alertId}')">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                    重試
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                    ${dismissible ? `
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="關閉"></button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        // 插入到頁面中
+        const container = this.getErrorContainer();
+        container.insertAdjacentHTML('beforeend', alertHtml);
+
+        // 儲存重試動作
+        if (retryAction) {
+            this.retryActions = this.retryActions || {};
+            this.retryActions[alertId] = retryAction;
+        }
+
+        // 自動隱藏
+        if (autoHide && hideDelay > 0) {
+            setTimeout(() => {
+                this.hideErrorAlert(alertId);
+            }, hideDelay);
+        }
+
+        // 添加動畫效果
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+            alertElement.classList.add('slide-up');
+        }
+
+        console.log(`錯誤警告已顯示: ${title}`);
+    }
+
+    /**
+     * 取得警告圖示
+     */
+    getAlertIcon(type) {
+        const icons = {
+            danger: 'exclamation-triangle-fill',
+            warning: 'exclamation-triangle',
+            info: 'info-circle',
+            success: 'check-circle'
+        };
+        return icons[type] || 'info-circle';
+    }
+
+    /**
+     * 取得錯誤容器
+     */
+    getErrorContainer() {
+        let container = document.getElementById('error-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'error-container';
+            container.className = 'position-fixed top-0 start-50 translate-middle-x mt-3';
+            container.style.cssText = 'z-index: 9999; max-width: 500px; width: 90%;';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    /**
+     * 隱藏錯誤警告
+     */
+    hideErrorAlert(alertId) {
+        const alert = document.getElementById(alertId);
+        if (alert) {
+            alert.classList.remove('show');
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 150);
+        }
+
+        // 清除重試動作
+        if (this.retryActions && this.retryActions[alertId]) {
+            delete this.retryActions[alertId];
+        }
+    }
+
+    /**
+     * 隱藏所有錯誤警告
+     */
+    hideErrorAlerts() {
+        const container = document.getElementById('error-container');
+        if (container) {
+            const alerts = container.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.classList.remove('show');
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.remove();
+                    }
+                }, 150);
+            });
+        }
+
+        // 清除所有重試動作
+        this.retryActions = {};
+    }
+
+    /**
+     * 處理重試動作
+     */
+    handleRetryAction(alertId) {
+        if (this.retryActions && this.retryActions[alertId]) {
+            const retryAction = this.retryActions[alertId];
+            
+            // 隱藏錯誤警告
+            this.hideErrorAlert(alertId);
+            
+            // 執行重試動作
+            try {
+                retryAction();
+                this.errorState.retryCount++;
+                console.log('重試動作已執行');
+            } catch (error) {
+                console.error('重試動作失敗:', error);
+                this.showErrorAlert('重試失敗', '無法執行重試動作，請手動重新操作。', 'danger');
+            }
+        }
+    }
+
+    /**
+     * 重試圖片處理
+     */
+    retryImageProcessing() {
+        if (this.imageData && this.imageData.image) {
+            try {
+                this.updatePreview();
+                this.showSuccessMessage('圖片處理已重試');
+            } catch (error) {
+                this.handleImageProcessingError(error, '重試處理');
+            }
+        } else {
+            this.showErrorAlert('無法重試', '請重新上傳圖片。', 'warning');
+        }
+    }
+
+    /**
+     * 重試下載
+     */
+    retryDownload(format = '') {
+        try {
+            if (format) {
+                this.downloadImage(format);
+            } else {
+                this.downloadImage();
+            }
+        } catch (error) {
+            this.handleDownloadError(error, format);
+        }
+    }
+
+    /**
+     * 重試最後動作
+     */
+    retryLastAction() {
+        // 這裡可以根據應用程式狀態決定重試什麼動作
+        if (this.imageData) {
+            this.retryImageProcessing();
+        } else {
+            this.elements.fileInput.click();
+        }
+    }
+
+    /**
+     * 重置上傳狀態
+     */
+    resetUploadState() {
+        if (this.elements.fileInput) {
+            this.elements.fileInput.value = '';
+        }
+        
+        if (this.elements.uploadSection) {
+            this.elements.uploadSection.classList.remove('loading');
+        }
+        
+        this.hideLoadingSpinner();
+    }
+
+    /**
+     * 停用所有功能
+     */
+    disableAllFeatures() {
+        // 停用檔案輸入
+        if (this.elements.fileInput) {
+            this.elements.fileInput.disabled = true;
+        }
+
+        // 停用控制面板
+        if (this.elements.controlPanel) {
+            const inputs = this.elements.controlPanel.querySelectorAll('input, select, button');
+            inputs.forEach(input => {
+                input.disabled = true;
+            });
+        }
+
+        // 停用下載按鈕
+        if (this.elements.downloadBtn) {
+            this.elements.downloadBtn.disabled = true;
+        }
+
+        console.log('所有功能已停用');
+    }
+
+    /**
+     * 啟用降級功能
+     */
+    enableFallbackFeatures(feature) {
+        if (feature === 'Canvas') {
+            // 提供基本的圖片顯示功能
+            this.enableBasicImageDisplay();
+        } else if (feature === 'File API') {
+            // 提供替代的檔案上傳方式
+            this.enableAlternativeFileUpload();
+        }
+
+        console.log(`已啟用 ${feature} 的降級功能`);
+    }
+
+    /**
+     * 啟用基本圖片顯示
+     */
+    enableBasicImageDisplay() {
+        // 使用 img 元素替代 Canvas
+        const previewArea = this.elements.previewArea;
+        if (previewArea) {
+            previewArea.innerHTML = `
+                <div class="text-center">
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>
+                        您的瀏覽器不支援進階預覽功能，但仍可以查看圖片。
+                    </div>
+                    <img id="fallback-preview" class="img-fluid" style="max-height: 400px; display: none;" alt="圖片預覽">
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 啟用替代檔案上傳
+     */
+    enableAlternativeFileUpload() {
+        const uploadSection = this.elements.uploadSection;
+        if (uploadSection) {
+            uploadSection.innerHTML = `
+                <div class="card border-2 border-dashed h-100">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-exclamation-triangle fs-1 text-warning mb-3"></i>
+                        <h5 class="card-title">相容性模式</h5>
+                        <p class="card-text text-muted">您的瀏覽器不支援拖放上傳，請使用下方按鈕選擇檔案。</p>
+                        <button type="button" class="btn btn-primary btn-lg" onclick="document.getElementById('file-input').click()">
+                            <i class="bi bi-folder2-open me-2"></i>
+                            選擇圖片
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 記錄錯誤到本地儲存
+     */
+    logErrorToStorage(type, error, details = {}) {
+        try {
+            const errorLog = {
+                timestamp: new Date().toISOString(),
+                type: type,
+                message: error.message || error.toString(),
+                stack: error.stack,
+                details: details,
+                userAgent: navigator.userAgent,
+                url: window.location.href
+            };
+
+            // 取得現有的錯誤記錄
+            let errorLogs = [];
+            try {
+                const stored = localStorage.getItem('watermark-tool-errors');
+                if (stored) {
+                    errorLogs = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.warn('無法讀取錯誤記錄:', e);
+            }
+
+            // 添加新的錯誤記錄
+            errorLogs.push(errorLog);
+
+            // 保持最多 50 條記錄
+            if (errorLogs.length > 50) {
+                errorLogs = errorLogs.slice(-50);
+            }
+
+            // 儲存到本地儲存
+            localStorage.setItem('watermark-tool-errors', JSON.stringify(errorLogs));
+            
+            console.log('錯誤已記錄到本地儲存');
+        } catch (e) {
+            console.warn('無法記錄錯誤到本地儲存:', e);
+        }
+    }
+
+    /**
+     * 顯示成功訊息
+     */
+    showSuccessMessage(message, autoHide = true) {
+        this.showErrorAlert('成功', message, 'success', {
+            autoHide: autoHide,
+            hideDelay: 3000,
+            showRetry: false
+        });
+    }
+
+    /**
+     * 顯示資訊訊息
+     */
+    showInfoMessage(message, autoHide = true) {
+        this.showErrorAlert('提示', message, 'info', {
+            autoHide: autoHide,
+            hideDelay: 4000,
+            showRetry: false
+        });
+    }
+
+    /**
+     * 顯示警告訊息
+     */
+    showWarningMessage(message, autoHide = true) {
+        this.showErrorAlert('注意', message, 'warning', {
+            autoHide: autoHide,
+            hideDelay: 4000,
+            showRetry: false
+        });
+    }
+
+    /**
+     * 檢查錯誤狀態
+     */
+    checkErrorState() {
+        return {
+            hasError: this.errorState.hasError,
+            errorCount: this.errorState.errorCount,
+            retryCount: this.errorState.retryCount,
+            canRetry: this.errorState.retryCount < this.errorState.maxRetries
+        };
+    }
+
+    /**
+     * 重置錯誤狀態
+     */
+    resetErrorState() {
+        this.errorState = {
+            hasError: false,
+            lastError: null,
+            errorCount: 0,
+            retryCount: 0,
+            maxRetries: 3
+        };
+        
+        this.hideErrorAlerts();
+        console.log('錯誤狀態已重置');
+    }
+
+    /**
      * 初始化應用程式
      */
     init() {
-        this.setupEventListeners();
-        this.setupResponsiveHandlers();
-        this.checkEmbeddedMode();
-        this.initializePresetOptions();
-        this.loadUserPreferences();
-        console.log('圖片浮水印工具已初始化');
+        try {
+            this.setupErrorHandling();
+            this.setupSettingsManager();
+            this.setupEventListeners();
+            this.setupResponsiveHandlers();
+            this.checkEmbeddedMode();
+            this.initializePresetOptions();
+            
+            // 載入使用者設定並應用到 UI
+            this.loadUserSettings();
+            this.ensureSettingsConsistency();
+            this.applySettingsToUI();
+            
+            // 設定自動儲存機制
+            this.setupAutoSave();
+            
+            console.log('圖片浮水印工具已初始化');
+        } catch (error) {
+            this.handleCriticalError('應用程式初始化失敗', error);
+        }
+    }
+
+    /**
+     * 設定 LocalStorage 設定管理系統
+     */
+    setupSettingsManager() {
+        // 設定管理器配置
+        this.settingsConfig = {
+            storageKey: 'watermark-tool-settings',
+            version: '1.0',
+            maxStorageSize: 1024 * 1024, // 1MB 限制
+            autoSaveDelay: 500 // 自動儲存延遲 (毫秒)
+        };
+
+        // 預設設定
+        this.defaultSettings = {
+            version: this.settingsConfig.version,
+            watermark: {
+                type: 'preset',
+                text: '僅供身分驗證使用',
+                presetType: 'taiwan-id',
+                position: 'bottom-right',
+                opacity: 0.5,
+                fontSize: 24,
+                color: '#ff0000'
+            },
+            ui: {
+                theme: 'light',
+                language: 'zh-TW',
+                showHints: true,
+                compactMode: false
+            },
+            advanced: {
+                imageQuality: 0.9,
+                maxImageSize: 10 * 1024 * 1024, // 10MB
+                enableDebugMode: false,
+                autoPreview: true
+            },
+            lastUsed: {
+                timestamp: null,
+                sessionCount: 0
+            }
+        };
+
+        // 初始化設定狀態
+        this.settingsState = {
+            loaded: false,
+            dirty: false,
+            lastSaved: null,
+            autoSaveTimer: null
+        };
+
+        console.log('LocalStorage 設定管理系統已設定');
+    }
+
+    /**
+     * 載入使用者設定
+     */
+    loadUserSettings() {
+        try {
+            const stored = localStorage.getItem(this.settingsConfig.storageKey);
+            
+            if (!stored) {
+                console.log('未找到儲存的設定，使用預設設定');
+                this.userSettings = this.cloneSettings(this.defaultSettings);
+                this.settingsState.loaded = true;
+                return this.userSettings;
+            }
+
+            const parsedSettings = JSON.parse(stored);
+            
+            // 驗證設定格式和版本
+            if (!this.validateSettings(parsedSettings)) {
+                console.warn('設定格式無效，使用預設設定');
+                this.userSettings = this.cloneSettings(this.defaultSettings);
+                this.saveUserSettings(); // 儲存修正後的設定
+                this.settingsState.loaded = true;
+                return this.userSettings;
+            }
+
+            // 合併設定（處理新增的設定項目）
+            this.userSettings = this.mergeSettings(this.defaultSettings, parsedSettings);
+            
+            // 更新最後使用時間和會話計數
+            this.userSettings.lastUsed.timestamp = new Date().toISOString();
+            this.userSettings.lastUsed.sessionCount = (this.userSettings.lastUsed.sessionCount || 0) + 1;
+            
+            this.settingsState.loaded = true;
+            this.settingsState.lastSaved = Date.now();
+            
+            console.log('使用者設定已載入', this.userSettings);
+            return this.userSettings;
+            
+        } catch (error) {
+            console.error('載入設定時發生錯誤:', error);
+            this.handleSettingsError('載入設定失敗', error);
+            
+            // 使用預設設定作為後備
+            this.userSettings = this.cloneSettings(this.defaultSettings);
+            this.settingsState.loaded = true;
+            return this.userSettings;
+        }
+    }
+
+    /**
+     * 儲存使用者設定
+     */
+    saveUserSettings(immediate = false) {
+        try {
+            if (!this.userSettings) {
+                console.warn('沒有設定可儲存');
+                return false;
+            }
+
+            // 清除之前的自動儲存計時器
+            if (this.settingsState.autoSaveTimer) {
+                clearTimeout(this.settingsState.autoSaveTimer);
+                this.settingsState.autoSaveTimer = null;
+            }
+
+            const saveAction = () => {
+                try {
+                    // 更新版本和時間戳
+                    this.userSettings.version = this.settingsConfig.version;
+                    this.userSettings.lastUsed.timestamp = new Date().toISOString();
+
+                    const settingsJson = JSON.stringify(this.userSettings);
+                    
+                    // 檢查儲存大小限制
+                    if (settingsJson.length > this.settingsConfig.maxStorageSize) {
+                        throw new Error('設定資料過大，超過儲存限制');
+                    }
+
+                    localStorage.setItem(this.settingsConfig.storageKey, settingsJson);
+                    
+                    this.settingsState.dirty = false;
+                    this.settingsState.lastSaved = Date.now();
+                    
+                    console.log('使用者設定已儲存');
+                    return true;
+                    
+                } catch (error) {
+                    console.error('儲存設定時發生錯誤:', error);
+                    this.handleSettingsError('儲存設定失敗', error);
+                    return false;
+                }
+            };
+
+            if (immediate) {
+                return saveAction();
+            } else {
+                // 延遲儲存以避免頻繁寫入
+                this.settingsState.autoSaveTimer = setTimeout(saveAction, this.settingsConfig.autoSaveDelay);
+                return true;
+            }
+            
+        } catch (error) {
+            console.error('設定儲存程序發生錯誤:', error);
+            this.handleSettingsError('設定儲存程序失敗', error);
+            return false;
+        }
+    }
+
+    /**
+     * 更新特定設定項目
+     */
+    updateSetting(path, value) {
+        try {
+            if (!this.userSettings) {
+                console.warn('設定尚未載入，無法更新');
+                return false;
+            }
+
+            // 使用路徑字串更新巢狀物件
+            const pathArray = path.split('.');
+            let current = this.userSettings;
+            
+            // 導航到目標物件
+            for (let i = 0; i < pathArray.length - 1; i++) {
+                const key = pathArray[i];
+                if (!current[key] || typeof current[key] !== 'object') {
+                    current[key] = {};
+                }
+                current = current[key];
+            }
+            
+            // 設定值
+            const finalKey = pathArray[pathArray.length - 1];
+            const oldValue = current[finalKey];
+            current[finalKey] = value;
+            
+            // 標記為需要儲存
+            this.settingsState.dirty = true;
+            
+            console.log(`設定已更新: ${path} = ${value} (舊值: ${oldValue})`);
+            
+            // 自動儲存
+            this.saveUserSettings();
+            
+            return true;
+            
+        } catch (error) {
+            console.error('更新設定時發生錯誤:', error);
+            this.handleSettingsError('更新設定失敗', error);
+            return false;
+        }
+    }
+
+    /**
+     * 取得特定設定項目
+     */
+    getSetting(path, defaultValue = null) {
+        try {
+            if (!this.userSettings) {
+                console.warn('設定尚未載入，返回預設值');
+                return defaultValue;
+            }
+
+            const pathArray = path.split('.');
+            let current = this.userSettings;
+            
+            for (const key of pathArray) {
+                if (current === null || current === undefined || typeof current !== 'object') {
+                    return defaultValue;
+                }
+                current = current[key];
+            }
+            
+            return current !== undefined ? current : defaultValue;
+            
+        } catch (error) {
+            console.error('取得設定時發生錯誤:', error);
+            return defaultValue;
+        }
+    }
+
+    /**
+     * 重置設定為預設值
+     */
+    resetSettings(category = null) {
+        try {
+            if (category) {
+                // 重置特定類別
+                if (this.defaultSettings[category]) {
+                    this.userSettings[category] = this.cloneSettings(this.defaultSettings[category]);
+                    console.log(`${category} 設定已重置為預設值`);
+                } else {
+                    console.warn(`未知的設定類別: ${category}`);
+                    return false;
+                }
+            } else {
+                // 重置所有設定
+                this.userSettings = this.cloneSettings(this.defaultSettings);
+                console.log('所有設定已重置為預設值');
+            }
+            
+            this.settingsState.dirty = true;
+            this.saveUserSettings(true); // 立即儲存
+            
+            // 觸發設定重置事件
+            this.onSettingsReset(category);
+            
+            return true;
+            
+        } catch (error) {
+            console.error('重置設定時發生錯誤:', error);
+            this.handleSettingsError('重置設定失敗', error);
+            return false;
+        }
+    }
+
+    /**
+     * 驗證設定格式
+     */
+    validateSettings(settings) {
+        try {
+            if (!settings || typeof settings !== 'object') {
+                return false;
+            }
+
+            // 檢查必要的設定結構
+            const requiredKeys = ['version', 'watermark', 'ui', 'advanced', 'lastUsed'];
+            for (const key of requiredKeys) {
+                if (!settings.hasOwnProperty(key)) {
+                    console.warn(`缺少必要的設定鍵: ${key}`);
+                    return false;
+                }
+            }
+
+            // 檢查浮水印設定
+            const watermark = settings.watermark;
+            if (!watermark || typeof watermark !== 'object') {
+                return false;
+            }
+
+            const requiredWatermarkKeys = ['type', 'position', 'opacity', 'fontSize'];
+            for (const key of requiredWatermarkKeys) {
+                if (!watermark.hasOwnProperty(key)) {
+                    console.warn(`缺少必要的浮水印設定: ${key}`);
+                    return false;
+                }
+            }
+
+            // 驗證數值範圍
+            if (watermark.opacity < 0 || watermark.opacity > 1) {
+                console.warn('透明度值超出範圍');
+                return false;
+            }
+
+            if (watermark.fontSize < 8 || watermark.fontSize > 100) {
+                console.warn('字體大小超出範圍');
+                return false;
+            }
+
+            return true;
+            
+        } catch (error) {
+            console.error('驗證設定時發生錯誤:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 合併設定（處理版本升級）
+     */
+    mergeSettings(defaultSettings, userSettings) {
+        try {
+            const merged = this.cloneSettings(defaultSettings);
+            
+            // 遞迴合併設定
+            const mergeRecursive = (target, source) => {
+                for (const key in source) {
+                    if (source.hasOwnProperty(key)) {
+                        if (target.hasOwnProperty(key) && 
+                            typeof target[key] === 'object' && 
+                            typeof source[key] === 'object' &&
+                            target[key] !== null && 
+                            source[key] !== null &&
+                            !Array.isArray(target[key]) && 
+                            !Array.isArray(source[key])) {
+                            mergeRecursive(target[key], source[key]);
+                        } else {
+                            target[key] = source[key];
+                        }
+                    }
+                }
+            };
+            
+            mergeRecursive(merged, userSettings);
+            
+            console.log('設定已合併');
+            return merged;
+            
+        } catch (error) {
+            console.error('合併設定時發生錯誤:', error);
+            return this.cloneSettings(defaultSettings);
+        }
+    }
+
+    /**
+     * 深度複製設定物件
+     */
+    cloneSettings(settings) {
+        try {
+            return JSON.parse(JSON.stringify(settings));
+        } catch (error) {
+            console.error('複製設定時發生錯誤:', error);
+            return {};
+        }
+    }
+
+    /**
+     * 匯出設定
+     */
+    exportSettings() {
+        try {
+            if (!this.userSettings) {
+                throw new Error('沒有設定可匯出');
+            }
+
+            const exportData = {
+                ...this.userSettings,
+                exportedAt: new Date().toISOString(),
+                exportVersion: this.settingsConfig.version
+            };
+
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `watermark-tool-settings-${new Date().toISOString().split('T')[0]}.json`;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            URL.revokeObjectURL(url);
+            
+            console.log('設定已匯出');
+            this.showSuccessMessage('設定已匯出到檔案');
+            
+            return true;
+            
+        } catch (error) {
+            console.error('匯出設定時發生錯誤:', error);
+            this.handleSettingsError('匯出設定失敗', error);
+            return false;
+        }
+    }
+
+    /**
+     * 匯入設定
+     */
+    importSettings(file) {
+        return new Promise((resolve, reject) => {
+            try {
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        // 驗證匯入的設定
+                        if (!this.validateSettings(importedData)) {
+                            throw new Error('匯入的設定格式無效');
+                        }
+                        
+                        // 合併匯入的設定
+                        this.userSettings = this.mergeSettings(this.defaultSettings, importedData);
+                        this.settingsState.dirty = true;
+                        
+                        // 儲存設定
+                        this.saveUserSettings(true);
+                        
+                        // 應用設定到 UI
+                        this.applySettingsToUI();
+                        
+                        console.log('設定已匯入');
+                        this.showSuccessMessage('設定已成功匯入');
+                        
+                        resolve(true);
+                        
+                    } catch (parseError) {
+                        console.error('解析匯入檔案時發生錯誤:', parseError);
+                        this.handleSettingsError('匯入檔案格式錯誤', parseError);
+                        reject(parseError);
+                    }
+                };
+                
+                reader.onerror = (error) => {
+                    console.error('讀取匯入檔案時發生錯誤:', error);
+                    this.handleSettingsError('讀取匯入檔案失敗', error);
+                    reject(error);
+                };
+                
+                reader.readAsText(file);
+                
+            } catch (error) {
+                console.error('匯入設定時發生錯誤:', error);
+                this.handleSettingsError('匯入設定失敗', error);
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * 清除所有儲存的設定
+     */
+    clearStoredSettings() {
+        try {
+            localStorage.removeItem(this.settingsConfig.storageKey);
+            localStorage.removeItem('watermark-tool-errors'); // 同時清除錯誤記錄
+            
+            // 重置為預設設定
+            this.userSettings = this.cloneSettings(this.defaultSettings);
+            this.settingsState.dirty = false;
+            this.settingsState.lastSaved = null;
+            
+            console.log('所有儲存的設定已清除');
+            this.showSuccessMessage('所有設定已清除');
+            
+            return true;
+            
+        } catch (error) {
+            console.error('清除設定時發生錯誤:', error);
+            this.handleSettingsError('清除設定失敗', error);
+            return false;
+        }
+    }
+
+    /**
+     * 取得設定統計資訊
+     */
+    getSettingsStats() {
+        try {
+            const stats = {
+                loaded: this.settingsState.loaded,
+                dirty: this.settingsState.dirty,
+                lastSaved: this.settingsState.lastSaved,
+                version: this.userSettings?.version || 'unknown',
+                sessionCount: this.userSettings?.lastUsed?.sessionCount || 0,
+                lastUsed: this.userSettings?.lastUsed?.timestamp || null,
+                storageSize: 0,
+                storageUsage: 0
+            };
+
+            // 計算儲存大小
+            try {
+                const stored = localStorage.getItem(this.settingsConfig.storageKey);
+                if (stored) {
+                    stats.storageSize = stored.length;
+                    stats.storageUsage = (stats.storageSize / this.settingsConfig.maxStorageSize * 100).toFixed(2);
+                }
+            } catch (e) {
+                console.warn('無法計算儲存大小:', e);
+            }
+
+            return stats;
+            
+        } catch (error) {
+            console.error('取得設定統計時發生錯誤:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 處理設定相關錯誤
+     */
+    handleSettingsError(message, error) {
+        console.error(`設定錯誤: ${message}`, error);
+        
+        // 記錄錯誤但不顯示給使用者（除非是關鍵錯誤）
+        this.logErrorToStorage('SettingsError', error, { message });
+        
+        // 只有在關鍵錯誤時才顯示警告
+        if (message.includes('載入') || message.includes('初始化')) {
+            this.showWarningMessage(`${message}，將使用預設設定`);
+        }
+    }
+
+    /**
+     * 設定重置事件處理
+     */
+    onSettingsReset(category) {
+        try {
+            if (category === 'watermark' || !category) {
+                // 重新應用浮水印設定到 UI
+                this.applyWatermarkSettingsToUI();
+            }
+            
+            if (category === 'ui' || !category) {
+                // 重新應用 UI 設定
+                this.applyUISettingsToUI();
+            }
+            
+            console.log(`設定重置事件已處理: ${category || 'all'}`);
+            
+        } catch (error) {
+            console.error('處理設定重置事件時發生錯誤:', error);
+        }
+    }
+
+    /**
+     * 應用浮水印設定到 UI
+     */
+    applyWatermarkSettingsToUI() {
+        try {
+            if (!this.userSettings || !this.userSettings.watermark) {
+                console.warn('浮水印設定不存在，無法應用到 UI');
+                return;
+            }
+
+            const watermarkSettings = this.userSettings.watermark;
+
+            // 應用浮水印類型
+            if (watermarkSettings.type) {
+                const typeRadio = document.querySelector(`input[name="watermark-type"][value="${watermarkSettings.type}"]`);
+                if (typeRadio) {
+                    typeRadio.checked = true;
+                    this.watermarkConfig.type = watermarkSettings.type;
+                    
+                    // 根據類型顯示對應的選項
+                    if (watermarkSettings.type === 'preset') {
+                        this.elements.presetOptions?.classList.remove('d-none');
+                        this.elements.customOptions?.classList.add('d-none');
+                    } else {
+                        this.elements.presetOptions?.classList.add('d-none');
+                        this.elements.customOptions?.classList.remove('d-none');
+                    }
+                }
+            }
+
+            // 應用預設類型
+            if (watermarkSettings.presetType && this.elements.presetSelect) {
+                this.elements.presetSelect.value = watermarkSettings.presetType;
+                this.watermarkConfig.presetType = watermarkSettings.presetType;
+            }
+
+            // 應用自訂文字
+            if (watermarkSettings.text !== undefined && this.elements.customText) {
+                this.elements.customText.value = watermarkSettings.text;
+                this.watermarkConfig.text = watermarkSettings.text;
+            }
+
+            // 應用透明度
+            if (watermarkSettings.opacity !== undefined && this.elements.opacityRange) {
+                this.elements.opacityRange.value = watermarkSettings.opacity * 100;
+                this.watermarkConfig.opacity = watermarkSettings.opacity;
+                if (this.elements.opacityValue) {
+                    this.elements.opacityValue.textContent = Math.round(watermarkSettings.opacity * 100) + '%';
+                }
+            }
+
+            // 應用字體大小
+            if (watermarkSettings.fontSize && this.elements.fontsizeRange) {
+                this.elements.fontsizeRange.value = watermarkSettings.fontSize;
+                this.watermarkConfig.fontSize = watermarkSettings.fontSize;
+                if (this.elements.fontsizeValue) {
+                    this.elements.fontsizeValue.textContent = watermarkSettings.fontSize + 'px';
+                }
+            }
+
+            // 應用位置
+            if (watermarkSettings.position) {
+                const positionRadio = document.querySelector(`input[name="position"][value="${watermarkSettings.position}"]`);
+                if (positionRadio) {
+                    positionRadio.checked = true;
+                    this.watermarkConfig.position = watermarkSettings.position;
+                }
+            }
+
+            // 應用顏色
+            if (watermarkSettings.color) {
+                this.watermarkConfig.color = watermarkSettings.color;
+            }
+
+            // 應用自訂位置座標
+            if (watermarkSettings.x !== undefined) {
+                this.watermarkConfig.x = watermarkSettings.x;
+            }
+            if (watermarkSettings.y !== undefined) {
+                this.watermarkConfig.y = watermarkSettings.y;
+            }
+
+            console.log('浮水印設定已應用到 UI');
+
+        } catch (error) {
+            console.error('應用浮水印設定到 UI 時發生錯誤:', error);
+        }
+    }
+
+    /**
+     * 應用 UI 設定到介面
+     */
+    applyUISettingsToUI() {
+        try {
+            if (!this.userSettings || !this.userSettings.ui) {
+                console.warn('UI 設定不存在，無法應用到介面');
+                return;
+            }
+
+            const uiSettings = this.userSettings.ui;
+
+            // 應用主題設定
+            if (uiSettings.theme) {
+                document.body.setAttribute('data-theme', uiSettings.theme);
+            }
+
+            // 應用緊湊模式
+            if (uiSettings.compactMode !== undefined) {
+                document.body.classList.toggle('compact-mode', uiSettings.compactMode);
+            }
+
+            // 應用提示顯示設定
+            if (uiSettings.showHints !== undefined) {
+                document.body.classList.toggle('hide-hints', !uiSettings.showHints);
+            }
+
+            console.log('UI 設定已應用到介面');
+
+        } catch (error) {
+            console.error('應用 UI 設定到介面時發生錯誤:', error);
+        }
+    }
+
+    /**
+     * 應用所有設定到 UI
+     */
+    applySettingsToUI() {
+        try {
+            if (!this.userSettings) {
+                console.warn('設定尚未載入，無法應用到 UI');
+                return;
+            }
+
+            // 等待 DOM 元素載入完成
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    this.applySettingsToUI();
+                });
+                return;
+            }
+
+            // 應用浮水印設定
+            this.applyWatermarkSettingsToUI();
+            
+            // 應用 UI 設定
+            this.applyUISettingsToUI();
+
+            console.log('所有設定已應用到 UI');
+
+        } catch (error) {
+            console.error('應用設定到 UI 時發生錯誤:', error);
+        }
+    }
+
+    /**
+     * 同步浮水印配置到設定系統
+     */
+    syncWatermarkConfigToSettings() {
+        try {
+            if (!this.userSettings || !this.watermarkConfig) {
+                return;
+            }
+
+            // 更新浮水印設定
+            this.updateSetting('watermark.type', this.watermarkConfig.type);
+            this.updateSetting('watermark.text', this.watermarkConfig.text);
+            this.updateSetting('watermark.presetType', this.watermarkConfig.presetType);
+            this.updateSetting('watermark.position', this.watermarkConfig.position);
+            this.updateSetting('watermark.opacity', this.watermarkConfig.opacity);
+            this.updateSetting('watermark.fontSize', this.watermarkConfig.fontSize);
+            this.updateSetting('watermark.color', this.watermarkConfig.color);
+
+            console.log('浮水印配置已同步到設定系統');
+
+        } catch (error) {
+            console.error('同步浮水印配置時發生錯誤:', error);
+        }
+    }
+
+    /**
+     * 更新浮水印配置並自動儲存設定
+     */
+    updateWatermarkConfig(property, value) {
+        try {
+            if (!this.watermarkConfig) {
+                console.warn('浮水印配置不存在');
+                return false;
+            }
+
+            // 更新本地配置
+            this.watermarkConfig[property] = value;
+
+            // 同步到設定系統
+            this.updateSetting(`watermark.${property}`, value);
+
+            console.log(`浮水印配置已更新: ${property} = ${value}`);
+            return true;
+
+        } catch (error) {
+            console.error('更新浮水印配置時發生錯誤:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 提供設定重置功能的公開介面
+     */
+    resetSettingsUI(category = null) {
+        try {
+            // 顯示確認對話框
+            const categoryText = category ? `${category} ` : '';
+            const confirmMessage = `確定要重置${categoryText}設定為預設值嗎？此操作無法復原。`;
+            
+            if (confirm(confirmMessage)) {
+                const success = this.resetSettings(category);
+                
+                if (success) {
+                    this.showSuccessMessage(`${categoryText}設定已重置為預設值`);
+                    
+                    // 重新載入頁面以確保所有設定正確應用
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    this.showErrorAlert('重置失敗', '無法重置設定，請稍後再試。', 'danger');
+                }
+            }
+
+        } catch (error) {
+            console.error('重置設定 UI 操作失敗:', error);
+            this.showErrorAlert('操作失敗', '重置設定時發生錯誤。', 'danger');
+        }
+    }
+
+    /**
+     * 取得設定狀態資訊
+     */
+    getSettingsInfo() {
+        try {
+            return {
+                loaded: this.settingsState.loaded,
+                dirty: this.settingsState.dirty,
+                lastSaved: this.settingsState.lastSaved,
+                version: this.userSettings?.version || 'unknown',
+                sessionCount: this.userSettings?.lastUsed?.sessionCount || 0,
+                lastUsed: this.userSettings?.lastUsed?.timestamp || null,
+                storageSize: this.getStorageSize(),
+                storageUsage: this.getStorageUsage()
+            };
+        } catch (error) {
+            console.error('取得設定資訊時發生錯誤:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 取得儲存空間使用量
+     */
+    getStorageSize() {
+        try {
+            const settings = localStorage.getItem(this.settingsConfig.storageKey);
+            return settings ? settings.length : 0;
+        } catch (error) {
+            return 0;
+        }
+    }
+
+    /**
+     * 取得儲存空間使用率
+     */
+    getStorageUsage() {
+        try {
+            const size = this.getStorageSize();
+            const maxSize = this.settingsConfig.maxStorageSize;
+            return maxSize > 0 ? (size / maxSize) * 100 : 0;
+        } catch (error) {
+            return 0;
+        }
+    }
+
+    /**
+     * 確保設定在不同會話間保持一致
+     */
+    ensureSettingsConsistency() {
+        try {
+            if (!this.userSettings) {
+                console.warn('設定尚未載入，無法檢查一致性');
+                return false;
+            }
+
+            let needsUpdate = false;
+
+            // 檢查並修正缺失的設定項目
+            const requiredPaths = [
+                'watermark.type',
+                'watermark.opacity',
+                'watermark.fontSize',
+                'watermark.position',
+                'ui.theme',
+                'ui.showHints',
+                'advanced.imageQuality'
+            ];
+
+            for (const path of requiredPaths) {
+                const value = this.getSetting(path);
+                if (value === null || value === undefined) {
+                    // 從預設設定中取得值
+                    const defaultValue = this.getSetting(path, this.getDefaultValueForPath(path));
+                    this.updateSetting(path, defaultValue);
+                    needsUpdate = true;
+                    console.log(`修正缺失的設定項目: ${path} = ${defaultValue}`);
+                }
+            }
+
+            // 檢查數值範圍
+            const opacity = this.getSetting('watermark.opacity');
+            if (opacity < 0 || opacity > 1) {
+                this.updateSetting('watermark.opacity', 0.5);
+                needsUpdate = true;
+                console.log('修正透明度數值範圍');
+            }
+
+            const fontSize = this.getSetting('watermark.fontSize');
+            if (fontSize < 8 || fontSize > 100) {
+                this.updateSetting('watermark.fontSize', 24);
+                needsUpdate = true;
+                console.log('修正字體大小範圍');
+            }
+
+            if (needsUpdate) {
+                this.saveUserSettings(true);
+                console.log('設定一致性檢查完成，已修正問題');
+            }
+
+            return true;
+
+        } catch (error) {
+            console.error('檢查設定一致性時發生錯誤:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 取得路徑的預設值
+     */
+    getDefaultValueForPath(path) {
+        const pathArray = path.split('.');
+        let current = this.defaultSettings;
+        
+        for (const key of pathArray) {
+            if (current && typeof current === 'object' && current.hasOwnProperty(key)) {
+                current = current[key];
+            } else {
+                return null;
+            }
+        }
+        
+        return current;
+    }
+
+    /**
+     * 自動儲存設定變更
+     */
+    autoSaveSettings() {
+        try {
+            if (this.settingsState.dirty) {
+                this.saveUserSettings();
+                console.log('設定已自動儲存');
+            }
+        } catch (error) {
+            console.error('自動儲存設定時發生錯誤:', error);
+        }
+    }
+
+    /**
+     * 設定定期自動儲存
+     */
+    setupAutoSave() {
+        // 每30秒檢查一次是否需要自動儲存
+        setInterval(() => {
+            this.autoSaveSettings();
+        }, 30000);
+
+        // 頁面卸載時儲存設定
+        window.addEventListener('beforeunload', () => {
+            if (this.settingsState.dirty) {
+                this.saveUserSettings(true);
+            }
+        });
+
+        console.log('自動儲存機制已設定');
     }
 
     /**
@@ -776,8 +2363,8 @@ class WatermarkApp {
             // 顯示拖拽完成回饋
             this.showDragCompleteFeedback();
             
-            // 儲存使用者偏好
-            this.saveUserPreferences();
+            // 自動儲存位置設定
+            this.syncWatermarkConfigToSettings();
             
             console.log('拖拽結束，浮水印位置:', { 
                 x: this.watermarkConfig.x, 
@@ -857,8 +2444,8 @@ class WatermarkApp {
             // 顯示拖拽完成回饋
             this.showDragCompleteFeedback();
             
-            // 儲存使用者偏好
-            this.saveUserPreferences();
+            // 自動儲存位置設定
+            this.syncWatermarkConfigToSettings();
             
             console.log('觸控拖拽結束，浮水印位置:', { 
                 x: this.watermarkConfig.x, 
@@ -1144,116 +2731,268 @@ class WatermarkApp {
      * 處理檔案處理
      */
     processFile(file) {
-        // 檔案驗證
-        if (!this.validateFile(file)) {
-            return;
-        }
-        
-        // 顯示載入狀態
-        this.showLoading(true, '正在讀取檔案...');
-        
-        const reader = new FileReader();
-        
-        reader.onload = (e) => {
-            this.showLoading(true, '正在載入圖片...');
-            this.loadImage(e.target.result);
-        };
-        
-        reader.onerror = (error) => {
-            console.error('檔案讀取錯誤:', error);
-            this.showError('檔案讀取失敗，請檢查檔案是否損壞');
+        try {
+            // 重置錯誤狀態
+            this.resetErrorState();
+            
+            // 檔案驗證
+            if (!this.validateFile(file)) {
+                return;
+            }
+            
+            // 顯示檔案處理進度
+            const progressIndicator = this.showFileProcessingProgress(file.name);
+            
+            // 顯示載入狀態
+            this.showLoading(true, '正在讀取檔案...', {
+                showProgress: true,
+                progress: 10,
+                showCancel: true,
+                cancelAction: () => this.cancelCurrentOperation()
+            });
+            
+            const reader = new FileReader();
+            this.currentFileReader = reader; // 儲存引用以供取消使用
+            
+            reader.onload = (e) => {
+                try {
+                    this.showLoading(true, '正在載入圖片...', {
+                        showProgress: true,
+                        progress: 60
+                    });
+                    this.loadImage(e.target.result);
+                } catch (error) {
+                    this.handleFileError(new Error('FileReadError'), file);
+                    this.showLoading(false);
+                }
+            };
+            
+            reader.onerror = (error) => {
+                console.error('檔案讀取錯誤:', error);
+                const fileError = new Error('檔案讀取失敗');
+                fileError.name = 'FileReadError';
+                this.handleFileError(fileError, file);
+                this.showLoading(false);
+            };
+            
+            reader.onabort = () => {
+                console.warn('檔案讀取被中止');
+                this.showWarningMessage('檔案讀取被中止');
+                this.showLoading(false);
+            };
+            
+            // 設定讀取超時
+            const timeout = setTimeout(() => {
+                reader.abort();
+                const timeoutError = new Error('檔案讀取超時');
+                timeoutError.name = 'FileReadError';
+                this.handleFileError(timeoutError, file);
+                this.showLoading(false);
+            }, 30000); // 30秒超時
+            
+            reader.addEventListener('loadend', () => {
+                clearTimeout(timeout);
+            });
+            
+            // 開始讀取檔案
+            reader.readAsDataURL(file);
+            
+            console.log('開始處理檔案:', {
+                名稱: file.name,
+                大小: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+                類型: file.type
+            });
+            
+        } catch (error) {
+            console.error('檔案處理錯誤:', error);
+            this.handleFileError(error, file);
             this.showLoading(false);
-        };
-        
-        // 開始讀取檔案
-        reader.readAsDataURL(file);
-        
-        console.log('開始處理檔案:', {
-            名稱: file.name,
-            大小: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-            類型: file.type
-        });
+        }
     }
 
     /**
      * 驗證檔案
      */
     validateFile(file) {
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        
-        if (!validTypes.includes(file.type)) {
-            this.showError('請選擇有效的圖片檔案 (JPG, PNG, GIF)');
+        try {
+            if (!file) {
+                const error = new Error('未選擇檔案');
+                error.name = 'FileTypeError';
+                this.handleFileError(error);
+                return false;
+            }
+
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            
+            // 檢查檔案類型
+            if (!validTypes.includes(file.type)) {
+                const error = new Error('不支援的檔案格式');
+                error.name = 'FileTypeError';
+                this.handleFileError(error, file);
+                return false;
+            }
+            
+            // 檢查檔案大小
+            if (file.size > maxSize) {
+                const error = new Error('檔案過大');
+                error.name = 'FileSizeError';
+                this.handleFileError(error, file);
+                return false;
+            }
+            
+            // 檢查檔案是否為空
+            if (file.size === 0) {
+                const error = new Error('檔案為空');
+                error.name = 'FileTypeError';
+                this.handleFileError(error, file);
+                return false;
+            }
+            
+            // 檢查檔案名稱
+            if (!file.name || file.name.trim() === '') {
+                const error = new Error('檔案名稱無效');
+                error.name = 'FileTypeError';
+                this.handleFileError(error, file);
+                return false;
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('檔案驗證錯誤:', error);
+            this.handleFileError(error, file);
             return false;
         }
-        
-        if (file.size > maxSize) {
-            this.showError('檔案大小不能超過 10MB');
-            return false;
-        }
-        
-        return true;
     }
 
     /**
      * 載入圖片
      */
     loadImage(src) {
-        const img = new Image();
-        
-        img.onload = () => {
-            try {
-                // 儲存原始圖片資料
-                this.imageData = {
-                    image: img,
-                    originalWidth: img.naturalWidth,
-                    originalHeight: img.naturalHeight,
-                    aspectRatio: img.naturalWidth / img.naturalHeight
-                };
-                
-                // 設定 Canvas 並計算顯示尺寸
-                this.setupCanvas(img);
-                
-                // 顯示控制面板和預覽
-                this.showControlPanel();
-                this.updatePreview();
-                
-                console.log('圖片載入完成:', {
-                    原始尺寸: `${this.imageData.originalWidth}x${this.imageData.originalHeight}`,
-                    顯示尺寸: `${this.canvas.width}x${this.canvas.height}`,
-                    長寬比: this.imageData.aspectRatio.toFixed(2)
-                });
-            } catch (error) {
-                console.error('圖片處理失敗:', error);
-                this.showError('圖片處理失敗，請重試');
-            } finally {
-                this.showLoading(false);
+        try {
+            if (!src) {
+                throw new Error('圖片來源無效');
             }
-        };
-        
-        img.onerror = (error) => {
-            console.error('圖片載入錯誤:', error);
-            this.showError('圖片載入失敗，請檢查檔案格式或重試');
+
+            const img = new Image();
+            this.currentImageLoad = img; // 儲存引用以供取消使用
+            
+            // 設定載入超時
+            const timeout = setTimeout(() => {
+                const timeoutError = new Error('圖片載入超時');
+                timeoutError.name = 'ImageLoadError';
+                this.handleImageProcessingError(timeoutError, '圖片載入');
+                this.showLoading(false);
+            }, 15000); // 15秒超時
+            
+            img.onload = () => {
+                try {
+                    clearTimeout(timeout);
+                    
+                    // 驗證圖片尺寸
+                    if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+                        throw new Error('圖片尺寸無效');
+                    }
+                    
+                    // 檢查圖片尺寸限制
+                    const maxDimension = 8000; // 最大尺寸限制
+                    if (img.naturalWidth > maxDimension || img.naturalHeight > maxDimension) {
+                        const error = new Error('圖片尺寸過大');
+                        error.name = 'MemoryError';
+                        throw error;
+                    }
+                    
+                    // 儲存原始圖片資料
+                    this.imageData = {
+                        image: img,
+                        originalWidth: img.naturalWidth,
+                        originalHeight: img.naturalHeight,
+                        aspectRatio: img.naturalWidth / img.naturalHeight
+                    };
+                    
+                    // 設定 Canvas 並計算顯示尺寸
+                    this.setupCanvas(img);
+                    
+                    // 顯示控制面板和預覽
+                    this.showControlPanel();
+                    this.updatePreview();
+                    
+                    // 顯示成功訊息
+                    this.showSuccessMessage('圖片載入成功');
+                    
+                    console.log('圖片載入完成:', {
+                        原始尺寸: `${this.imageData.originalWidth}x${this.imageData.originalHeight}`,
+                        顯示尺寸: `${this.canvas.width}x${this.canvas.height}`,
+                        長寬比: this.imageData.aspectRatio.toFixed(2)
+                    });
+                    
+                } catch (error) {
+                    console.error('圖片處理失敗:', error);
+                    this.handleImageProcessingError(error, '圖片載入後處理');
+                } finally {
+                    this.showLoading(false);
+                }
+            };
+            
+            img.onerror = (error) => {
+                clearTimeout(timeout);
+                console.error('圖片載入錯誤:', error);
+                
+                const loadError = new Error('圖片載入失敗');
+                loadError.name = 'ImageLoadError';
+                this.handleImageProcessingError(loadError, '圖片載入');
+                this.showLoading(false);
+            };
+            
+            img.onabort = () => {
+                clearTimeout(timeout);
+                console.warn('圖片載入被中止');
+                this.showWarningMessage('圖片載入被中止');
+                this.showLoading(false);
+            };
+            
+            // 開始載入圖片
+            img.src = src;
+            
+        } catch (error) {
+            console.error('載入圖片錯誤:', error);
+            this.handleImageProcessingError(error, '圖片載入初始化');
             this.showLoading(false);
-        };
-        
-        img.src = src;
+        }
     }
 
     /**
      * 設定 Canvas
      */
     setupCanvas(img) {
-        // 取得 Canvas 元素和上下文
-        this.canvas = this.elements.previewCanvas;
-        this.context = this.canvas.getContext('2d');
+        try {
+            // 取得 Canvas 元素和上下文
+            this.canvas = this.elements.previewCanvas;
+            
+            if (!this.canvas) {
+                throw new Error('找不到預覽 Canvas 元素');
+            }
+            
+            this.context = this.canvas.getContext('2d');
+            
+            // 檢查 Canvas 支援
+            if (!this.context) {
+                const error = new Error('瀏覽器不支援 Canvas');
+                error.name = 'CanvasError';
+                throw error;
+            }
+            
+            // 檢查 Canvas 功能
+            try {
+                this.context.createImageData(1, 1);
+            } catch (e) {
+                const error = new Error('Canvas 功能受限');
+                error.name = 'CanvasError';
+                throw error;
+            }
         
-        // 檢查 Canvas 支援
-        if (!this.context) {
-            throw new Error('瀏覽器不支援 Canvas，請使用現代瀏覽器');
-        }
-        
-        // 計算響應式顯示尺寸
+            // 計算響應式顯示尺寸
         const containerPadding = 40;
         const containerWidth = this.elements.previewArea.clientWidth - containerPadding;
         
@@ -1302,11 +3041,17 @@ class WatermarkApp {
         this.context.imageSmoothingEnabled = true;
         this.context.imageSmoothingQuality = 'high';
         
-        console.log('Canvas 設定完成:', {
-            原始尺寸: `${originalWidth}x${originalHeight}`,
-            顯示尺寸: `${this.canvas.width}x${this.canvas.height}`,
-            縮放比例: this.imageData.scaleFactor.toFixed(3)
-        });
+            console.log('Canvas 設定完成:', {
+                原始尺寸: `${originalWidth}x${originalHeight}`,
+                顯示尺寸: `${this.canvas.width}x${this.canvas.height}`,
+                縮放比例: this.imageData.scaleFactor.toFixed(3)
+            });
+            
+        } catch (error) {
+            console.error('Canvas 設定錯誤:', error);
+            this.handleCompatibilityError('Canvas', error);
+            throw error;
+        }
     }
 
     /**
@@ -1793,7 +3538,7 @@ class WatermarkApp {
      */
     handleWatermarkTypeChange(e) {
         const type = e.target.value;
-        this.watermarkConfig.type = type;
+        this.updateWatermarkConfig('type', type);
         
         if (type === 'preset') {
             this.elements.presetOptions.classList.remove('d-none');
@@ -1802,11 +3547,10 @@ class WatermarkApp {
         } else {
             this.elements.presetOptions.classList.add('d-none');
             this.elements.customOptions.classList.remove('d-none');
-            this.watermarkConfig.text = this.elements.customText.value;
+            this.updateWatermarkConfig('text', this.elements.customText.value);
         }
         
         this.updatePreview();
-        this.saveUserPreferences();
         console.log('浮水印類型已變更:', type);
     }
 
@@ -1815,10 +3559,9 @@ class WatermarkApp {
      */
     handlePresetChange(e) {
         const presetType = e.target.value;
-        this.watermarkConfig.presetType = presetType;
+        this.updateWatermarkConfig('presetType', presetType);
         this.applyPresetWatermark(presetType);
         this.updatePreview();
-        this.saveUserPreferences();
         console.log('預設類型已變更:', presetType);
     }
 
@@ -1832,11 +3575,12 @@ class WatermarkApp {
             return;
         }
 
-        this.watermarkConfig.text = preset.text;
-        this.watermarkConfig.fontSize = preset.fontSize;
-        this.watermarkConfig.color = preset.color;
-        this.watermarkConfig.opacity = preset.opacity;
-        this.watermarkConfig.position = preset.position;
+        // 使用新的設定系統更新配置
+        this.updateWatermarkConfig('text', preset.text);
+        this.updateWatermarkConfig('fontSize', preset.fontSize);
+        this.updateWatermarkConfig('color', preset.color);
+        this.updateWatermarkConfig('opacity', preset.opacity);
+        this.updateWatermarkConfig('position', preset.position);
 
         // 更新 UI 控制項
         this.elements.opacityRange.value = preset.opacity * 100;
@@ -1858,9 +3602,8 @@ class WatermarkApp {
      * 處理自訂文字變更
      */
     handleCustomTextChange(e) {
-        this.watermarkConfig.text = e.target.value;
+        this.updateWatermarkConfig('text', e.target.value);
         this.updatePreview();
-        this.saveUserPreferences();
         console.log('自訂文字已變更:', e.target.value);
     }
 
@@ -1869,10 +3612,9 @@ class WatermarkApp {
      */
     handleOpacityChange(e) {
         const opacity = parseInt(e.target.value) / 100;
-        this.watermarkConfig.opacity = opacity;
+        this.updateWatermarkConfig('opacity', opacity);
         this.elements.opacityValue.textContent = e.target.value + '%';
         this.updatePreview();
-        this.saveUserPreferences();
         console.log('透明度已變更:', opacity);
     }
 
@@ -1880,10 +3622,9 @@ class WatermarkApp {
      * 處理字體大小變更
      */
     handleFontsizeChange(e) {
-        this.watermarkConfig.fontSize = parseInt(e.target.value);
+        this.updateWatermarkConfig('fontSize', parseInt(e.target.value));
         this.elements.fontsizeValue.textContent = e.target.value + 'px';
         this.updatePreview();
-        this.saveUserPreferences();
         console.log('字體大小已變更:', e.target.value);
     }
 
@@ -1891,42 +3632,41 @@ class WatermarkApp {
      * 處理位置變更
      */
     handlePositionChange(e) {
-        this.watermarkConfig.position = e.target.value;
+        this.updateWatermarkConfig('position', e.target.value);
         // 重置自訂位置
-        this.watermarkConfig.x = 0;
-        this.watermarkConfig.y = 0;
+        this.updateWatermarkConfig('x', 0);
+        this.updateWatermarkConfig('y', 0);
         this.updatePreview();
-        this.saveUserPreferences();
         console.log('位置已變更:', e.target.value);
     }
 
     /**
      * 下載圖片
      */
-    downloadImage() {
-        if (!this.validateDownloadConditions()) {
-            return;
-        }
-        
-        // 顯示下載狀態
-        this.showDownloadProgress(true);
-        
+    downloadImage(format = 'png') {
         try {
+            if (!this.validateDownloadConditions()) {
+                return;
+            }
+            
+            // 顯示下載狀態
+            this.showDownloadProgress(true, format);
+            
             // 生成高品質圖片
-            const imageData = this.generateHighQualityImage();
+            const imageData = this.generateHighQualityImage(format);
             
             // 生成檔名
-            const filename = this.generateDownloadFilename();
+            const filename = this.generateDownloadFilename(format);
             
             // 執行下載
             this.performDownload(imageData, filename);
             
             // 顯示成功回饋
-            this.showDownloadSuccess();
+            this.showDownloadSuccess(filename);
             
         } catch (error) {
             console.error('下載失敗:', error);
-            this.showDownloadError(error);
+            this.handleDownloadError(error, format);
         } finally {
             this.showDownloadProgress(false);
         }
@@ -1936,17 +3676,72 @@ class WatermarkApp {
      * 驗證下載條件
      */
     validateDownloadConditions() {
-        if (!this.canvas) {
-            this.showError('沒有可下載的圖片');
+        try {
+            if (!this.canvas) {
+                const error = new Error('沒有可下載的圖片');
+                error.name = 'FileGenerationError';
+                this.handleDownloadError(error);
+                return false;
+            }
+            
+            if (!this.imageData || !this.imageData.image) {
+                const error = new Error('圖片資料不完整，請重新上傳圖片');
+                error.name = 'FileGenerationError';
+                this.handleDownloadError(error);
+                return false;
+            }
+            
+            if (!this.context) {
+                const error = new Error('Canvas 上下文無效');
+                error.name = 'CanvasError';
+                this.handleDownloadError(error);
+                return false;
+            }
+            
+            // 檢查瀏覽器下載支援
+            if (!this.checkDownloadSupport()) {
+                const error = new Error('瀏覽器不支援直接下載');
+                error.name = 'BrowserCompatibilityError';
+                this.handleDownloadError(error);
+                return false;
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('下載條件驗證錯誤:', error);
+            this.handleDownloadError(error);
             return false;
         }
-        
-        if (!this.imageData || !this.imageData.image) {
-            this.showError('圖片資料不完整，請重新上傳圖片');
+    }
+
+    /**
+     * 檢查下載支援
+     */
+    checkDownloadSupport() {
+        try {
+            // 檢查 Canvas toBlob 支援
+            if (!this.canvas.toBlob) {
+                return false;
+            }
+            
+            // 檢查 URL.createObjectURL 支援
+            if (!window.URL || !window.URL.createObjectURL) {
+                return false;
+            }
+            
+            // 檢查 document.createElement('a').download 支援
+            const testLink = document.createElement('a');
+            if (typeof testLink.download === 'undefined') {
+                return false;
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.warn('下載支援檢查失敗:', error);
             return false;
         }
-        
-        return true;
     }
 
     /**
@@ -2274,24 +4069,501 @@ class WatermarkApp {
     /**
      * 顯示下載進度狀態
      */
-    showDownloadProgress(show, message = '正在生成高品質圖片...') {
-        // 使用增強版本的進度顯示
-        this.showEnhancedDownloadProgress(show, message);
+    showDownloadProgress(show, format = 'png') {
+        const formatNames = {
+            'png': 'PNG (高品質)',
+            'jpg': 'JPG (較小檔案)',
+            'jpeg': 'JPEG (較小檔案)'
+        };
         
-        // 同時顯示全域載入提示
+        const formatName = formatNames[format] || format.toUpperCase();
+        
         if (show) {
-            this.showLoading(true, message);
+            // 顯示詳細的下載進度
+            this.showDownloadProgressSteps(formatName);
+            
+            // 同時顯示全域載入提示
+            this.showLoading(true, `正在生成 ${formatName} 圖片...`, {
+                showProgress: true,
+                progress: 0,
+                showCancel: true,
+                cancelAction: () => this.cancelDownload(),
+                type: 'success'
+            });
+            
+            // 模擬下載進度
+            this.simulateDownloadProgress();
+            
         } else {
+            this.hideDownloadProgressSteps();
             this.showLoading(false);
         }
     }
 
     /**
+     * 顯示下載進度步驟
+     */
+    showDownloadProgressSteps(formatName) {
+        const statusElement = this.elements.downloadStatus;
+        const statusText = this.elements.downloadStatusText;
+        
+        if (statusElement && statusText) {
+            statusText.textContent = `正在生成 ${formatName} 圖片`;
+            statusElement.classList.remove('d-none');
+            statusElement.classList.add('fade-in');
+        }
+        
+        // 停用下載按鈕並顯示載入狀態
+        this.setDownloadButtonState('loading');
+    }
+
+    /**
+     * 隱藏下載進度步驟
+     */
+    hideDownloadProgressSteps() {
+        const statusElement = this.elements.downloadStatus;
+        
+        if (statusElement) {
+            statusElement.classList.add('d-none');
+            statusElement.classList.remove('fade-in');
+        }
+        
+        // 恢復下載按鈕狀態
+        this.setDownloadButtonState('ready');
+    }
+
+    /**
+     * 模擬下載進度
+     */
+    simulateDownloadProgress() {
+        const steps = [
+            { progress: 20, message: '正在處理圖片...' },
+            { progress: 40, message: '正在應用浮水印...' },
+            { progress: 60, message: '正在優化品質...' },
+            { progress: 80, message: '正在生成檔案...' },
+            { progress: 100, message: '準備下載...' }
+        ];
+        
+        let currentStep = 0;
+        
+        const updateStep = () => {
+            if (currentStep < steps.length) {
+                const step = steps[currentStep];
+                
+                // 更新全域載入進度
+                this.updateLoadingProgress(step.progress, 100);
+                
+                // 更新下載狀態文字
+                const statusText = this.elements.downloadStatusText;
+                if (statusText) {
+                    statusText.textContent = step.message;
+                }
+                
+                currentStep++;
+                
+                // 設定下一步的延遲
+                const delay = currentStep === steps.length ? 500 : 800 + Math.random() * 400;
+                setTimeout(updateStep, delay);
+            }
+        };
+        
+        // 開始進度更新
+        setTimeout(updateStep, 300);
+    }
+
+    /**
+     * 設定下載按鈕狀態
+     */
+    setDownloadButtonState(state) {
+        const downloadBtn = this.elements.downloadBtn;
+        const downloadOptionsBtn = this.elements.downloadOptionsBtn;
+        
+        if (!downloadBtn) return;
+        
+        // 清除所有狀態類別
+        downloadBtn.classList.remove('btn-loading', 'btn-success-flash', 'btn-error-flash');
+        
+        switch (state) {
+            case 'loading':
+                downloadBtn.disabled = true;
+                downloadBtn.classList.add('btn-loading');
+                downloadBtn.innerHTML = `
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">處理中...</span>
+                    </div>
+                    處理中...
+                `;
+                if (downloadOptionsBtn) {
+                    downloadOptionsBtn.disabled = true;
+                }
+                break;
+                
+            case 'success':
+                downloadBtn.classList.add('btn-success-flash');
+                downloadBtn.innerHTML = `
+                    <i class="bi bi-check-circle me-2"></i>
+                    下載完成
+                `;
+                setTimeout(() => {
+                    this.setDownloadButtonState('ready');
+                }, 2000);
+                break;
+                
+            case 'error':
+                downloadBtn.classList.add('btn-error-flash');
+                downloadBtn.innerHTML = `
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    下載失敗
+                `;
+                setTimeout(() => {
+                    this.setDownloadButtonState('ready');
+                }, 2000);
+                break;
+                
+            case 'ready':
+            default:
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = `
+                    <i class="bi bi-download me-2"></i>
+                    下載圖片
+                `;
+                if (downloadOptionsBtn) {
+                    downloadOptionsBtn.disabled = false;
+                }
+                break;
+        }
+    }
+
+    /**
+     * 取消下載
+     */
+    cancelDownload() {
+        console.log('使用者取消了下載操作');
+        
+        // 停止任何進行中的下載處理
+        if (this.downloadTimeout) {
+            clearTimeout(this.downloadTimeout);
+            this.downloadTimeout = null;
+        }
+        
+        // 重置下載狀態
+        this.hideDownloadProgressSteps();
+        this.setDownloadButtonState('ready');
+        
+        // 顯示取消訊息
+        this.showInfoMessage('下載已取消');
+    }
+
+    /**
      * 顯示下載成功回饋
      */
-    showDownloadSuccess(message = '圖片下載成功！') {
-        // 使用增強版本的成功回饋
-        this.showEnhancedDownloadSuccess(message);
+    showDownloadSuccess(filename = '') {
+        // 顯示成功狀態
+        const successElement = this.elements.downloadSuccess;
+        const successText = this.elements.downloadSuccessText;
+        
+        if (successElement && successText) {
+            const message = filename ? 
+                `圖片 "${filename}" 已成功儲存到您的裝置` : 
+                '圖片已成功儲存到您的裝置';
+                
+            successText.textContent = message;
+            successElement.classList.remove('d-none');
+            successElement.classList.add('fade-in');
+            
+            // 自動隱藏成功訊息
+            setTimeout(() => {
+                successElement.classList.add('d-none');
+                successElement.classList.remove('fade-in');
+            }, 4000);
+        }
+        
+        // 設定按鈕成功狀態
+        this.setDownloadButtonState('success');
+        
+        // 顯示成功 Toast
+        this.showSuccessToast('下載完成', filename ? 
+            `檔案 "${filename}" 已儲存` : 
+            '圖片已成功下載');
+        
+        // 啟用手機版下載功能
+        this.enableMobileDownloadFeatures();
+        
+        console.log('下載成功回饋已顯示:', filename);
+    }
+
+    /**
+     * 顯示操作進度指示器
+     */
+    showOperationProgress(operation, steps = []) {
+        const progressContainer = this.getProgressContainer();
+        
+        const progressHtml = `
+            <div class="operation-progress card shadow-sm border-0" id="operation-progress-${Date.now()}">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="spinner-border spinner-border-sm text-primary me-3" role="status">
+                            <span class="visually-hidden">處理中...</span>
+                        </div>
+                        <h6 class="mb-0">${operation}</h6>
+                    </div>
+                    <div class="progress mb-2" style="height: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             style="width: 0%"
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    <small class="text-muted operation-step">準備中...</small>
+                </div>
+            </div>
+        `;
+        
+        progressContainer.insertAdjacentHTML('beforeend', progressHtml);
+        const progressElement = progressContainer.lastElementChild;
+        
+        // 執行步驟
+        if (steps.length > 0) {
+            this.executeProgressSteps(progressElement, steps);
+        }
+        
+        return progressElement;
+    }
+
+    /**
+     * 執行進度步驟
+     */
+    executeProgressSteps(progressElement, steps) {
+        let currentStep = 0;
+        const progressBar = progressElement.querySelector('.progress-bar');
+        const stepText = progressElement.querySelector('.operation-step');
+        
+        const executeStep = () => {
+            if (currentStep < steps.length) {
+                const step = steps[currentStep];
+                const progress = ((currentStep + 1) / steps.length) * 100;
+                
+                // 更新進度條
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', progress);
+                
+                // 更新步驟文字
+                stepText.textContent = step.message || `步驟 ${currentStep + 1}`;
+                
+                // 執行步驟動作
+                if (step.action && typeof step.action === 'function') {
+                    try {
+                        step.action();
+                    } catch (error) {
+                        console.error('步驟執行錯誤:', error);
+                    }
+                }
+                
+                currentStep++;
+                
+                // 設定下一步延遲
+                const delay = step.delay || 800;
+                setTimeout(executeStep, delay);
+                
+            } else {
+                // 完成所有步驟
+                this.completeOperationProgress(progressElement);
+            }
+        };
+        
+        // 開始執行步驟
+        setTimeout(executeStep, 300);
+    }
+
+    /**
+     * 完成操作進度
+     */
+    completeOperationProgress(progressElement) {
+        const spinner = progressElement.querySelector('.spinner-border');
+        const progressBar = progressElement.querySelector('.progress-bar');
+        const stepText = progressElement.querySelector('.operation-step');
+        
+        // 更新為完成狀態
+        spinner.classList.remove('spinner-border');
+        spinner.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+        
+        progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+        progressBar.classList.add('bg-success');
+        progressBar.style.width = '100%';
+        
+        stepText.textContent = '完成';
+        stepText.classList.add('text-success');
+        
+        // 自動移除
+        setTimeout(() => {
+            progressElement.classList.add('fade-out');
+            setTimeout(() => {
+                if (progressElement.parentNode) {
+                    progressElement.remove();
+                }
+            }, 300);
+        }, 2000);
+    }
+
+    /**
+     * 取得進度容器
+     */
+    getProgressContainer() {
+        let container = document.getElementById('progress-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'progress-container';
+            container.className = 'position-fixed bottom-0 end-0 p-3';
+            container.style.cssText = 'z-index: 9998; max-width: 350px;';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    /**
+     * 顯示檔案處理進度
+     */
+    showFileProcessingProgress(filename) {
+        const steps = [
+            { message: '驗證檔案格式...', delay: 500 },
+            { message: '讀取檔案內容...', delay: 800 },
+            { message: '載入圖片資料...', delay: 1000 },
+            { message: '初始化預覽...', delay: 600 },
+            { message: '準備編輯工具...', delay: 400 }
+        ];
+        
+        return this.showOperationProgress(`處理檔案: ${filename}`, steps);
+    }
+
+    /**
+     * 顯示圖片載入進度
+     */
+    showImageLoadingProgress() {
+        const steps = [
+            { message: '解析圖片資料...', delay: 600 },
+            { message: '計算顯示尺寸...', delay: 400 },
+            { message: '設定 Canvas...', delay: 500 },
+            { message: '渲染預覽...', delay: 700 }
+        ];
+        
+        return this.showOperationProgress('載入圖片', steps);
+    }
+
+    /**
+     * 顯示浮水印應用進度
+     */
+    showWatermarkProgress() {
+        const steps = [
+            { message: '計算浮水印位置...', delay: 300 },
+            { message: '渲染浮水印文字...', delay: 500 },
+            { message: '應用透明度效果...', delay: 400 },
+            { message: '更新預覽...', delay: 300 }
+        ];
+        
+        return this.showOperationProgress('應用浮水印', steps);
+    }
+
+    /**
+     * 顯示系統狀態指示器
+     */
+    showSystemStatus(status, message, type = 'info') {
+        const statusContainer = this.getSystemStatusContainer();
+        
+        const statusHtml = `
+            <div class="system-status alert alert-${type} alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-${this.getStatusIcon(type)} me-2"></i>
+                    <div class="flex-grow-1">
+                        <strong>${status}</strong>
+                        <div class="small">${message}</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+        `;
+        
+        statusContainer.insertAdjacentHTML('beforeend', statusHtml);
+        
+        // 自動清理
+        const statusElement = statusContainer.lastElementChild;
+        setTimeout(() => {
+            if (statusElement && statusElement.parentNode) {
+                statusElement.classList.remove('show');
+                setTimeout(() => {
+                    if (statusElement.parentNode) {
+                        statusElement.remove();
+                    }
+                }, 150);
+            }
+        }, 5000);
+    }
+
+    /**
+     * 取得狀態圖示
+     */
+    getStatusIcon(type) {
+        const icons = {
+            success: 'check-circle-fill',
+            warning: 'exclamation-triangle-fill',
+            danger: 'x-circle-fill',
+            info: 'info-circle-fill',
+            primary: 'gear-fill'
+        };
+        return icons[type] || 'info-circle-fill';
+    }
+
+    /**
+     * 取得系統狀態容器
+     */
+    getSystemStatusContainer() {
+        let container = document.getElementById('system-status-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'system-status-container';
+            container.className = 'position-fixed top-0 start-50 translate-middle-x mt-3';
+            container.style.cssText = 'z-index: 9997; max-width: 500px; width: 90%;';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    /**
+     * 顯示成功 Toast
+     */
+    showSuccessToast(title, message, duration = 3000) {
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-center">
+                        <i class="bi bi-check-circle-fill me-3"></i>
+                        <div>
+                            <div class="fw-bold">${title}</div>
+                            <small>${message}</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        const toastContainer = this.getToastContainer();
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+        const toastElement = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastElement, {
+            delay: duration
+        });
+        
+        toast.show();
+
+        // 自動清理
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+
+        return toast;
     }
 
     /**
@@ -3209,20 +5481,332 @@ class WatermarkApp {
     /**
      * 顯示載入狀態
      */
-    showLoading(show, message = '載入中...') {
+    showLoading(show, message = '載入中...', options = {}) {
+        const {
+            showProgress = false,
+            progress = 0,
+            showCancel = false,
+            cancelAction = null,
+            persistent = false,
+            type = 'primary'
+        } = options;
+
         const spinner = this.elements.loadingSpinner;
-        const loadingMessage = spinner.querySelector('.loading-message');
         
+        if (!spinner) {
+            console.warn('載入指示器元素不存在');
+            return;
+        }
+
         if (show) {
-            if (loadingMessage) {
-                loadingMessage.textContent = message;
-            }
+            this.updateLoadingContent(message, {
+                showProgress,
+                progress,
+                showCancel,
+                cancelAction,
+                type
+            });
+            
+            // 顯示載入指示器
             spinner.classList.remove('d-none');
             spinner.classList.add('fade-in');
+            
+            // 設定持續性
+            if (persistent) {
+                spinner.setAttribute('data-persistent', 'true');
+            } else {
+                spinner.removeAttribute('data-persistent');
+            }
+            
+            // 防止背景互動
+            this.setBackgroundInteraction(false);
+            
+            console.log(`載入狀態已顯示: ${message}`);
+            
         } else {
+            // 隱藏載入指示器
             spinner.classList.add('d-none');
             spinner.classList.remove('fade-in');
+            spinner.removeAttribute('data-persistent');
+            
+            // 恢復背景互動
+            this.setBackgroundInteraction(true);
+            
+            // 清除載入狀態
+            this.clearLoadingState();
+            
+            console.log('載入狀態已隱藏');
         }
+    }
+
+    /**
+     * 更新載入內容
+     */
+    updateLoadingContent(message, options = {}) {
+        const {
+            showProgress = false,
+            progress = 0,
+            showCancel = false,
+            cancelAction = null,
+            type = 'primary'
+        } = options;
+
+        const spinner = this.elements.loadingSpinner;
+        const cardBody = spinner.querySelector('.card-body');
+        
+        if (!cardBody) return;
+
+        // 建立載入內容
+        let content = `
+            <div class="text-center">
+                <div class="spinner-border text-${type} mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">載入中...</span>
+                </div>
+                <h6 class="card-title mb-2">${message}</h6>
+        `;
+
+        // 添加進度條
+        if (showProgress) {
+            content += `
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-${type}" 
+                         role="progressbar" 
+                         style="width: ${Math.max(0, Math.min(100, progress))}%"
+                         aria-valuenow="${progress}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                    </div>
+                </div>
+                <small class="text-muted">進度: ${Math.round(progress)}%</small>
+            `;
+        } else {
+            content += `
+                <p class="card-text text-muted small mb-0">
+                    <span class="loading-message">${message}</span>
+                </p>
+            `;
+        }
+
+        // 添加取消按鈕
+        if (showCancel && cancelAction) {
+            content += `
+                <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="loading-cancel-btn">
+                        <i class="bi bi-x-circle me-1"></i>
+                        取消
+                    </button>
+                </div>
+            `;
+        }
+
+        content += '</div>';
+        cardBody.innerHTML = content;
+
+        // 綁定取消按鈕事件
+        if (showCancel && cancelAction) {
+            const cancelBtn = cardBody.querySelector('#loading-cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    try {
+                        cancelAction();
+                        this.showLoading(false);
+                    } catch (error) {
+                        console.error('取消操作失敗:', error);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * 設定背景互動
+     */
+    setBackgroundInteraction(enabled) {
+        const body = document.body;
+        
+        if (enabled) {
+            body.classList.remove('loading-active');
+            body.style.pointerEvents = '';
+            body.style.userSelect = '';
+        } else {
+            body.classList.add('loading-active');
+            body.style.pointerEvents = 'none';
+            body.style.userSelect = 'none';
+            
+            // 載入指示器本身保持可互動
+            const spinner = this.elements.loadingSpinner;
+            if (spinner) {
+                spinner.style.pointerEvents = 'auto';
+            }
+        }
+    }
+
+    /**
+     * 清除載入狀態
+     */
+    clearLoadingState() {
+        // 清除任何載入相關的狀態
+        if (this.loadingTimeout) {
+            clearTimeout(this.loadingTimeout);
+            this.loadingTimeout = null;
+        }
+        
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
+        }
+    }
+
+    /**
+     * 顯示進度載入
+     */
+    showProgressLoading(message, totalSteps = 100) {
+        let currentStep = 0;
+        
+        this.showLoading(true, message, {
+            showProgress: true,
+            progress: 0,
+            showCancel: true,
+            cancelAction: () => {
+                this.cancelCurrentOperation();
+            }
+        });
+
+        // 模擬進度更新
+        this.progressInterval = setInterval(() => {
+            currentStep += Math.random() * 10;
+            
+            if (currentStep >= totalSteps) {
+                currentStep = totalSteps;
+                clearInterval(this.progressInterval);
+                this.progressInterval = null;
+            }
+            
+            this.updateLoadingProgress(currentStep, totalSteps);
+        }, 200);
+
+        return {
+            updateProgress: (step) => this.updateLoadingProgress(step, totalSteps),
+            complete: () => {
+                if (this.progressInterval) {
+                    clearInterval(this.progressInterval);
+                    this.progressInterval = null;
+                }
+                this.showLoading(false);
+            }
+        };
+    }
+
+    /**
+     * 更新載入進度
+     */
+    updateLoadingProgress(current, total) {
+        const progress = Math.round((current / total) * 100);
+        const spinner = this.elements.loadingSpinner;
+        
+        if (!spinner) return;
+
+        const progressBar = spinner.querySelector('.progress-bar');
+        const progressText = spinner.querySelector('small.text-muted');
+        
+        if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+        }
+        
+        if (progressText) {
+            progressText.textContent = `進度: ${progress}%`;
+        }
+    }
+
+    /**
+     * 顯示載入 Toast
+     */
+    showLoadingToast(message, duration = 3000) {
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-3" role="status">
+                            <span class="visually-hidden">載入中...</span>
+                        </div>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        const toastContainer = this.getToastContainer();
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+        const toastElement = toastContainer.lastElementChild;
+        const toast = new bootstrap.Toast(toastElement, {
+            delay: duration
+        });
+        
+        toast.show();
+
+        // 自動清理
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+
+        return toast;
+    }
+
+    /**
+     * 取得 Toast 容器
+     */
+    getToastContainer() {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container position-fixed top-0 end-0 p-3';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    /**
+     * 隱藏載入 Spinner
+     */
+    hideLoadingSpinner() {
+        this.showLoading(false);
+    }
+
+    /**
+     * 顯示載入 Spinner
+     */
+    showLoadingSpinner(message = '載入中...', options = {}) {
+        this.showLoading(true, message, options);
+    }
+
+    /**
+     * 取消當前操作
+     */
+    cancelCurrentOperation() {
+        console.log('使用者取消了當前操作');
+        
+        // 取消檔案讀取
+        if (this.currentFileReader) {
+            this.currentFileReader.abort();
+            this.currentFileReader = null;
+        }
+        
+        // 取消圖片載入
+        if (this.currentImageLoad) {
+            this.currentImageLoad.src = '';
+            this.currentImageLoad = null;
+        }
+        
+        // 重置狀態
+        this.resetUploadState();
+        
+        // 顯示取消訊息
+        this.showInfoMessage('操作已取消');
     }
 
     /**

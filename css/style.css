@@ -1347,6 +1347,447 @@ body {
     }
 }
 
+/* 錯誤處理和載入狀態樣式 */
+
+/* 錯誤容器樣式 */
+#error-container {
+    max-width: 500px;
+    width: 90%;
+}
+
+#error-container .alert {
+    border-radius: 0.75rem;
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+}
+
+#error-container .alert-danger {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(220, 53, 69, 0.05));
+    border-left: 4px solid var(--danger-color);
+}
+
+#error-container .alert-warning {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.05));
+    border-left: 4px solid var(--warning-color);
+}
+
+#error-container .alert-success {
+    background: linear-gradient(135deg, rgba(25, 135, 84, 0.1), rgba(25, 135, 84, 0.05));
+    border-left: 4px solid var(--success-color);
+}
+
+#error-container .alert-info {
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(13, 110, 253, 0.05));
+    border-left: 4px solid var(--primary-color);
+}
+
+/* 載入狀態樣式 */
+.loading-active {
+    overflow: hidden;
+}
+
+.loading-active * {
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
+.loading-active #loading-spinner {
+    pointer-events: auto !important;
+}
+
+#loading-spinner {
+    backdrop-filter: blur(10px);
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+#loading-spinner .card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+    min-width: 250px;
+    max-width: 400px;
+}
+
+#loading-spinner .progress {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-radius: 0.5rem;
+}
+
+#loading-spinner .progress-bar {
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, var(--primary-color), #0056b3);
+}
+
+/* 進度容器樣式 */
+#progress-container {
+    max-width: 350px;
+}
+
+.operation-progress {
+    margin-bottom: 1rem;
+    border-radius: 0.75rem;
+    border: none;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    animation: slideInRight 0.3s ease-out;
+}
+
+.operation-progress .progress {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-radius: 0.25rem;
+}
+
+.operation-progress .progress-bar {
+    border-radius: 0.25rem;
+    background: linear-gradient(90deg, var(--primary-color), #0056b3);
+}
+
+.operation-progress.fade-out {
+    animation: slideOutRight 0.3s ease-in;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* Toast 容器樣式 */
+#toast-container {
+    z-index: 9999;
+}
+
+#toast-container .toast {
+    border-radius: 0.75rem;
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    min-width: 300px;
+}
+
+#toast-container .toast-body {
+    padding: 1rem;
+}
+
+/* 系統狀態容器樣式 */
+#system-status-container {
+    max-width: 500px;
+    width: 90%;
+}
+
+#system-status-container .alert {
+    border-radius: 0.75rem;
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+}
+
+/* 下載狀態增強樣式 */
+#download-status {
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(13, 110, 253, 0.2);
+}
+
+#download-status .alert {
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(13, 110, 253, 0.05));
+    border: none;
+    border-radius: 0.5rem;
+}
+
+#download-success {
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(25, 135, 84, 0.2);
+}
+
+#download-success .alert {
+    background: linear-gradient(135deg, rgba(25, 135, 84, 0.1), rgba(25, 135, 84, 0.05));
+    border: none;
+    border-radius: 0.5rem;
+}
+
+/* 按鈕載入狀態樣式 */
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading .spinner-border {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+/* 按鈕成功動畫 */
+.btn-success-flash {
+    animation: successFlash 1s ease-out;
+}
+
+@keyframes successFlash {
+    0% {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+    }
+    50% {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+    }
+    100% {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+
+/* 按鈕錯誤動畫 */
+.btn-error-flash {
+    animation: errorFlash 1s ease-out;
+}
+
+@keyframes errorFlash {
+    0% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(0);
+    }
+    15% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(-5px);
+    }
+    30% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(5px);
+    }
+    45% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(-3px);
+    }
+    60% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(3px);
+    }
+    75% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(-1px);
+    }
+    90% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(1px);
+    }
+    100% {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        transform: translateX(0);
+    }
+}
+
+/* 進度條動畫增強 */
+.progress-bar-striped.progress-bar-animated {
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+    background-size: 1rem 1rem;
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+    0% {
+        background-position-x: 1rem;
+    }
+}
+
+/* 載入 Spinner 增強樣式 */
+.spinner-border {
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 脈衝動畫 */
+.pulse-animation {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 呼吸動畫 */
+.breathe-animation {
+    animation: breathe 3s ease-in-out infinite;
+}
+
+@keyframes breathe {
+    0%, 100% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+}
+
+/* 載入狀態時的背景模糊 */
+.loading-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(3px);
+    z-index: 9998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.loading-backdrop.show {
+    opacity: 1;
+}
+
+/* 手機版載入狀態調整 */
+@media (max-width: 767.98px) {
+    #error-container {
+        left: 1rem !important;
+        right: 1rem !important;
+        transform: none !important;
+        max-width: none;
+        width: auto;
+    }
+    
+    #loading-spinner .card {
+        min-width: 200px;
+        max-width: 300px;
+    }
+    
+    #progress-container {
+        left: 1rem;
+        right: 1rem;
+        max-width: none;
+    }
+    
+    .operation-progress {
+        margin-bottom: 0.75rem;
+    }
+    
+    #toast-container {
+        left: 1rem !important;
+        right: 1rem !important;
+        top: 1rem !important;
+    }
+    
+    #toast-container .toast {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    #system-status-container {
+        left: 1rem !important;
+        right: 1rem !important;
+        transform: none !important;
+        max-width: none;
+        width: auto;
+    }
+}
+
+/* 高對比模式下的載入狀態 */
+@media (prefers-contrast: high) {
+    #loading-spinner .card {
+        background: #fff !important;
+        border: 2px solid #000 !important;
+    }
+    
+    .operation-progress {
+        background: #fff !important;
+        border: 2px solid #000 !important;
+    }
+    
+    #error-container .alert {
+        border-width: 2px !important;
+    }
+}
+
+/* 減少動畫偏好下的載入狀態 */
+@media (prefers-reduced-motion: reduce) {
+    .operation-progress {
+        animation: none !important;
+    }
+    
+    .operation-progress.fade-out {
+        animation: none !important;
+        opacity: 0 !important;
+    }
+    
+    .progress-bar-striped.progress-bar-animated {
+        animation: none !important;
+    }
+    
+    .spinner-border {
+        animation: none !important;
+    }
+    
+    .pulse-animation,
+    .breathe-animation {
+        animation: none !important;
+    }
+    
+    .btn-success-flash,
+    .btn-error-flash {
+        animation: none !important;
+    }
+}
+
 /* 螢幕方向適應樣式 */
 .orientation-landscape {
     /* 橫向模式基礎樣式 */
