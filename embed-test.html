@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>嵌入模式測試頁面</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .embed-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .embed-header {
+            background: #0d6efd;
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+        }
+        
+        iframe {
+            width: 100%;
+            border: none;
+            display: block;
+        }
+        
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .btn {
+            background: #0d6efd;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #0b5ed7;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #0d6efd;
+            background: white;
+        }
+        
+        .message.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .message.success {
+            border-left-color: #198754;
+            background: #d1e7dd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>圖片浮水印工具 - 嵌入模式測試</h1>
+        <p>這個頁面展示了圖片浮水印工具在嵌入模式下的運作情況。</p>
+        
+        <!-- 標準嵌入 -->
+        <div class="embed-container">
+            <div class="embed-header">標準嵌入模式 (800x600)</div>
+            <iframe id="embed-standard" src="index.html" width="800" height="600"></iframe>
+            <div class="controls">
+                <button class="btn" onclick="resizeIframe('embed-standard', 800, 600)">標準尺寸</button>
+                <button class="btn" onclick="resizeIframe('embed-standard', 600, 400)">緊湊尺寸</button>
+                <button class="btn" onclick="resizeIframe('embed-standard', 1000, 700)">擴展尺寸</button>
+                <button class="btn" onclick="sendTestMessage('embed-standard')">測試通訊</button>
+                <button class="btn" onclick="loadTestImage('embed-standard')">載入測試圖片</button>
+            </div>
+        </div>
+        
+        <!-- 緊湊嵌入 -->
+        <div class="embed-container">
+            <div class="embed-header">緊湊嵌入模式 (500x400)</div>
+            <iframe id="embed-compact" src="index.html" width="500" height="400"></iframe>
+            <div class="controls">
+                <button class="btn" onclick="resizeIframe('embed-compact', 500, 400)">緊湊尺寸</button>
+                <button class="btn" onclick="resizeIframe('embed-compact', 400, 300)">超緊湊</button>
+                <button class="btn" onclick="sendTestMessage('embed-compact')">測試通訊</button>
+            </div>
+        </div>
+        
+        <!-- 窄屏嵌入 -->
+        <div class="embed-container">
+            <div class="embed-header">窄屏嵌入模式 (350x600)</div>
+            <iframe id="embed-narrow" src="index.html" width="350" height="600"></iframe>
+            <div class="controls">
+                <button class="btn" onclick="resizeIframe('embed-narrow', 350, 600)">窄屏尺寸</button>
+                <button class="btn" onclick="resizeIframe('embed-narrow', 300, 500)">超窄屏</button>
+                <button class="btn" onclick="sendTestMessage('embed-narrow')">測試通訊</button>
+            </div>
+        </div>
+        
+        <!-- 通訊狀態 -->
+        <div class="embed-container">
+            <div class="embed-header">通訊狀態監控</div>
+            <div class="controls">
+                <button class="btn" onclick="clearMessages()">清除訊息</button>
+                <button class="btn" onclick="testAllCommunication()">測試所有通訊</button>
+            </div>
+            <div id="message-log" class="status">
+                <div class="message">等待嵌入工具載入...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 訊息日誌
+        const messageLog = document.getElementById('message-log');
+        
+        // 監聽來自嵌入工具的訊息
+        window.addEventListener('message', function(event) {
+            // 安全檢查：確保訊息來自我們的工具
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+            
+            logMessage('收到訊息', event.data, 'success');
+        });
+        
+        // 記錄訊息
+        function logMessage(title, data, type = 'info') {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.innerHTML = `
+                <strong>${title}:</strong><br>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+                <small>${new Date().toLocaleTimeString()}</small>
+            `;
+            messageLog.appendChild(message);
+            messageLog.scrollTop = messageLog.scrollHeight;
+        }
+        
+        // 調整 iframe 尺寸
+        function resizeIframe(iframeId, width, height) {
+            const iframe = document.getElementById(iframeId);
+            iframe.width = width;
+            iframe.height = height;
+            
+            // 通知嵌入工具容器尺寸變化
+            iframe.contentWindow.postMessage({
+                type: 'resize_container',
+                data: { width, height }
+            }, '*');
+            
+            logMessage('調整尺寸', { iframeId, width, height });
+        }
+        
+        // 發送測試訊息
+        function sendTestMessage(iframeId) {
+            const iframe = document.getElementById(iframeId);
+            const testMessage = {
+                type: 'get_status',
+                data: { timestamp: new Date().toISOString() }
+            };
+            
+            iframe.contentWindow.postMessage(testMessage, '*');
+            logMessage('發送測試訊息', { iframeId, message: testMessage });
+        }
+        
+        // 載入測試圖片
+        function loadTestImage(iframeId) {
+            const iframe = document.getElementById(iframeId);
+            
+            // 創建一個簡單的測試圖片 (1x1 像素的 PNG)
+            const testImageData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+            
+            iframe.contentWindow.postMessage({
+                type: 'load_image',
+                data: { imageData: testImageData }
+            }, '*');
+            
+            logMessage('載入測試圖片', { iframeId });
+        }
+        
+        // 清除訊息
+        function clearMessages() {
+            messageLog.innerHTML = '<div class="message">訊息已清除</div>';
+        }
+        
+        // 測試所有通訊
+        function testAllCommunication() {
+            const iframes = ['embed-standard', 'embed-compact', 'embed-narrow'];
+            
+            iframes.forEach(iframeId => {
+                setTimeout(() => {
+                    sendTestMessage(iframeId);
+                }, Math.random() * 1000);
+            });
+            
+            logMessage('測試所有通訊', { iframes });
+        }
+        
+        // 頁面載入完成後的初始化
+        window.addEventListener('load', function() {
+            logMessage('測試頁面載入完成', { 
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent.substring(0, 50) + '...'
+            });
+            
+            // 等待 iframe 載入完成後發送初始訊息
+            setTimeout(() => {
+                testAllCommunication();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

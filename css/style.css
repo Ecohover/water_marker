@@ -271,10 +271,37 @@ body {
         font-size: 1.25rem;
     }
     
-    .btn-lg {
+    /* 觸控友善的按鈕尺寸 - 符合 Apple HIG 和 Material Design 標準 */
+    .btn-lg,
+    .btn,
+    .form-control,
+    .form-select,
+    .form-range {
         min-height: 44px; /* 觸控友善的最小高度 */
+        font-size: 1rem;
     }
     
+    /* 上傳按鈕特別優化 */
+    #upload-section .btn-lg {
+        min-height: 48px;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+    }
+    
+    /* 單欄佈局優化 */
+    .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    
+    .col-lg-4,
+    .col-lg-8 {
+        padding-left: 0;
+        padding-right: 0;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* 預覽區域手機版優化 */
     #preview-area {
         min-height: 250px;
         padding: 0.5rem;
@@ -285,15 +312,57 @@ body {
         border-radius: 0.25rem;
     }
     
-    /* 位置按鈕在手機上更大 */
+    /* 位置按鈕在手機上更大且更易觸控 */
     .btn-outline-secondary {
-        min-height: 44px;
-        font-size: 1.1rem;
+        min-height: 48px;
+        font-size: 1.2rem;
+        padding: 0.75rem;
+        border-width: 2px;
+    }
+    
+    /* 位置控制網格間距優化 */
+    .row.g-2 {
+        gap: 0.75rem;
+    }
+    
+    .row.g-2 > .col-4 {
+        margin-bottom: 0.75rem;
     }
     
     /* 控制面板在手機上的間距調整 */
     .card {
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        border-radius: 0.75rem;
+    }
+    
+    .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* 範圍滑桿手機版優化 */
+    .form-range {
+        height: 2rem;
+        cursor: pointer;
+    }
+    
+    .form-range::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+    
+    .form-range::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+    
+    /* 文字輸入框手機版優化 */
+    #custom-text {
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
     }
     
     /* 縮放控制在手機上的調整 */
@@ -304,12 +373,72 @@ body {
         opacity: 1;
         background: rgba(255, 255, 255, 0.95);
         box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
     }
     
     .zoom-btn {
-        width: 40px;
-        height: 40px;
-        font-size: 1.1rem;
+        width: 44px;
+        height: 44px;
+        font-size: 1.2rem;
+        border-radius: 0.5rem;
+        margin: 0.25rem;
+    }
+    
+    /* 下載按鈕組手機版優化 */
+    .btn-group {
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        flex: 1;
+        min-height: 48px;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    
+    /* Toast 訊息手機版調整 */
+    .toast-container {
+        left: 1rem !important;
+        right: 1rem !important;
+        top: 1rem !important;
+    }
+    
+    .toast {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    /* 底部固定操作按鈕 */
+    .mobile-fixed-actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+        z-index: 1000;
+        box-shadow: 0 -0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    }
+    
+    .mobile-fixed-actions .btn {
+        min-height: 48px;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 0.75rem;
+    }
+    
+    /* 為底部固定按鈕預留空間 */
+    .mobile-layout main {
+        padding-bottom: 100px;
+    }
+    
+    /* 隱藏原始下載按鈕在手機版 */
+    .mobile-layout #download-btn,
+    .mobile-layout #download-options-btn {
+        display: none;
     }
 }
 
@@ -361,20 +490,337 @@ body {
 }
 
 /* 嵌入模式樣式 */
+.embedded-mode {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+}
+
+.embedded-mode * {
+    box-sizing: border-box !important;
+}
+
 .embedded-mode header,
 .embedded-mode footer {
-    display: none;
+    display: none !important;
 }
 
 .embedded-mode main {
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+    margin-top: 1rem !important;
+    margin-bottom: 1rem !important;
+    min-height: calc(100vh - 2rem) !important;
 }
 
 .embedded-mode .container {
-    max-width: 100%;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    max-width: 100% !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+
+.embedded-mode .card {
+    margin-bottom: 1rem !important;
+    border-radius: 0.5rem !important;
+}
+
+.embedded-mode #preview-area {
+    min-height: 300px !important;
+    padding: 1rem !important;
+}
+
+/* 嵌入模式下的按鈕優化 */
+.embedded-mode .btn-lg {
+    font-size: 0.9rem !important;
+    padding: 0.5rem 1rem !important;
+    min-height: 40px !important;
+}
+
+.embedded-mode .btn {
+    font-size: 0.875rem !important;
+    padding: 0.375rem 0.75rem !important;
+    min-height: 36px !important;
+}
+
+/* 嵌入模式下的 Toast 和載入指示器 */
+.embedded-mode .toast-container {
+    position: fixed !important;
+    top: 1rem !important;
+    right: 1rem !important;
+    z-index: 9999 !important;
+}
+
+.embedded-mode #loading-spinner {
+    position: fixed !important;
+    z-index: 10000 !important;
+}
+
+/* 嵌入模式下的響應式調整 */
+.embedded-mode.mobile-layout main {
+    padding-bottom: 80px !important;
+}
+
+.embedded-mode.mobile-layout .mobile-fixed-actions {
+    padding: 0.75rem 1rem !important;
+}
+
+/* 嵌入模式下的控制面板優化 */
+.embedded-mode .card-body {
+    padding: 1rem !important;
+}
+
+.embedded-mode .card-header {
+    padding: 0.75rem 1rem !important;
+}
+
+.embedded-mode .card-header h6 {
+    font-size: 0.9rem !important;
+    margin-bottom: 0 !important;
+}
+
+/* 嵌入模式下的表單控制項 */
+.embedded-mode .form-control,
+.embedded-mode .form-select {
+    font-size: 0.875rem !important;
+    padding: 0.5rem 0.75rem !important;
+}
+
+.embedded-mode .form-range {
+    height: 1.5rem !important;
+}
+
+/* 嵌入模式下的位置控制按鈕 */
+.embedded-mode .btn-outline-secondary {
+    min-height: 36px !important;
+    font-size: 1rem !important;
+    padding: 0.5rem !important;
+}
+
+/* 嵌入模式下的預覽 Canvas */
+.embedded-mode #preview-canvas {
+    max-height: 400px !important;
+    border-radius: 0.375rem !important;
+}
+
+/* 嵌入模式下的錯誤和成功訊息 */
+.embedded-mode .alert {
+    font-size: 0.875rem !important;
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* 嵌入模式下的下載狀態指示器 */
+.embedded-mode #download-status,
+.embedded-mode #download-success {
+    font-size: 0.875rem !important;
+}
+
+.embedded-mode #download-status .alert,
+.embedded-mode #download-success .alert {
+    padding: 0.5rem 0.75rem !important;
+}
+
+/* 嵌入模式下的拖拽提示 */
+.embedded-mode .drag-hint {
+    font-size: 0.8rem !important;
+    padding: 0.5rem 0.75rem !important;
+    border-radius: 0.375rem !important;
+}
+
+/* 嵌入模式下的方向變化指示器 */
+.embedded-mode #orientation-indicator {
+    font-size: 0.8rem !important;
+    padding: 0.75rem 1rem !important;
+}
+
+/* 嵌入模式下的縮放控制 */
+.embedded-mode .image-zoom-controls {
+    padding: 0.5rem !important;
+    border-radius: 0.5rem !important;
+}
+
+.embedded-mode .zoom-btn {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.9rem !important;
+}
+
+/* 嵌入模式的最小高度保證 */
+.embedded-mode {
+    min-height: 500px !important;
+}
+
+/* 嵌入模式下的滾動條優化 */
+.embedded-mode::-webkit-scrollbar {
+    width: 6px;
+}
+
+.embedded-mode::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.embedded-mode::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.embedded-mode::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 嵌入模式的動態佈局調整 */
+.embedded-mode.compact-layout #preview-area {
+    min-height: 200px !important;
+    max-height: 250px !important;
+}
+
+.embedded-mode.compact-layout .card {
+    margin-bottom: 0.5rem !important;
+}
+
+.embedded-mode.compact-layout .card-body {
+    padding: 0.75rem !important;
+}
+
+.embedded-mode.compact-layout .btn {
+    font-size: 0.8rem !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+.embedded-mode.standard-layout #preview-area {
+    min-height: 300px !important;
+    max-height: 400px !important;
+}
+
+.embedded-mode.expanded-layout #preview-area {
+    min-height: 400px !important;
+    max-height: 500px !important;
+}
+
+.embedded-mode.narrow-layout .row {
+    flex-direction: column !important;
+}
+
+.embedded-mode.narrow-layout .col-lg-4,
+.embedded-mode.narrow-layout .col-lg-8 {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* 嵌入模式的效能優化樣式 */
+.embedded-mode.performance-optimized * {
+    animation-duration: 0.1s !important;
+    transition-duration: 0.1s !important;
+}
+
+.embedded-mode.performance-optimized .fade-in,
+.embedded-mode.performance-optimized .slide-up {
+    animation: none !important;
+}
+
+/* 嵌入模式的無障礙設計 */
+.embedded-mode[role="application"] {
+    outline: none;
+}
+
+.embedded-mode button:focus,
+.embedded-mode input:focus,
+.embedded-mode select:focus {
+    outline: 2px solid #0d6efd !important;
+    outline-offset: 2px !important;
+}
+
+/* 嵌入模式的錯誤狀態樣式 */
+.embedded-mode .error-boundary {
+    background-color: #f8d7da !important;
+    border: 1px solid #f5c6cb !important;
+    color: #721c24 !important;
+    padding: 1rem !important;
+    border-radius: 0.375rem !important;
+    margin: 1rem 0 !important;
+}
+
+.embedded-mode .error-boundary h5 {
+    color: #721c24 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.embedded-mode .error-boundary p {
+    margin-bottom: 0 !important;
+    font-size: 0.875rem !important;
+}
+
+/* 嵌入模式的載入狀態優化 */
+.embedded-mode #loading-spinner .card {
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(5px) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+}
+
+.embedded-mode #loading-spinner .spinner-border {
+    width: 2rem !important;
+    height: 2rem !important;
+}
+
+/* 嵌入模式的通訊狀態指示器 */
+.embedded-mode .communication-status {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    background: rgba(13, 110, 253, 0.9);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    z-index: 9998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.embedded-mode .communication-status.active {
+    opacity: 1;
+}
+
+.embedded-mode .communication-status.error {
+    background: rgba(220, 53, 69, 0.9);
+}
+
+/* 嵌入模式的父頁面保護樣式 */
+.embedded-mode.isolated {
+    contain: layout style paint;
+    isolation: isolate;
+}
+
+/* 嵌入模式的響應式斷點調整 */
+@media (max-height: 600px) {
+    .embedded-mode {
+        font-size: 0.875rem !important;
+    }
+    
+    .embedded-mode .card-header {
+        padding: 0.5rem 0.75rem !important;
+    }
+    
+    .embedded-mode .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    .embedded-mode #preview-area {
+        min-height: 200px !important;
+    }
+}
+
+@media (max-width: 500px) {
+    .embedded-mode .row {
+        flex-direction: column !important;
+    }
+    
+    .embedded-mode .col-lg-4,
+    .embedded-mode .col-lg-8 {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 1rem !important;
+    }
 }
 
 /* 動畫效果 */
@@ -727,6 +1173,12 @@ body {
 }
 
 /* 下載按鈕狀態樣式 */
+#download-btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
 #download-btn:disabled {
     background-color: #6c757d;
     border-color: #6c757d;
@@ -738,6 +1190,87 @@ body {
     background-color: #6c757d;
     border-color: #6c757d;
     transform: none;
+}
+
+/* 下載按鈕載入狀態 */
+#download-btn.btn-loading {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    cursor: wait;
+}
+
+#download-btn.btn-loading .spinner-border-sm {
+    animation: spin 1s linear infinite;
+}
+
+/* 下載成功動畫 */
+#download-btn.btn-success-flash {
+    animation: downloadSuccess 1s ease-out;
+}
+
+@keyframes downloadSuccess {
+    0% {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+        transform: scale(1);
+    }
+    50% {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+        transform: scale(1.05);
+        box-shadow: 0 0.5rem 1rem rgba(25, 135, 84, 0.3);
+    }
+    100% {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        transform: scale(1);
+        box-shadow: none;
+    }
+}
+
+/* 下載錯誤動畫 */
+#download-btn.btn-error-flash {
+    animation: downloadError 1s ease-out;
+}
+
+@keyframes downloadError {
+    0% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: scale(1);
+    }
+    25% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(-5px);
+    }
+    50% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(5px);
+    }
+    75% {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        transform: translateX(-2px);
+    }
+    100% {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        transform: translateX(0);
+    }
+}
+
+/* 下載按鈕懸停效果增強 */
+#download-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 0.5rem rgba(13, 110, 253, 0.3);
+}
+
+#download-btn:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: 0 0.125rem 0.25rem rgba(13, 110, 253, 0.2);
 }
 
 /* 即時回饋動畫 */
@@ -811,5 +1344,201 @@ body {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+}
+
+/* 螢幕方向適應樣式 */
+.orientation-landscape {
+    /* 橫向模式基礎樣式 */
+    --orientation: landscape;
+}
+
+.orientation-portrait {
+    /* 直向模式基礎樣式 */
+    --orientation: portrait;
+}
+
+/* 手機橫向模式特殊樣式 */
+@media (max-width: 767.98px) and (orientation: landscape) {
+    /* 調整 header 高度 */
+    header {
+        padding: 0.5rem 0;
+    }
+    
+    header h1 {
+        font-size: 1.1rem;
+    }
+    
+    /* 壓縮主要內容區域間距 */
+    main {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* 調整卡片間距 */
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    /* 調整預覽區域 */
+    #preview-area {
+        min-height: 180px;
+        padding: 0.5rem;
+    }
+    
+    #preview-canvas {
+        max-height: 200px;
+    }
+    
+    /* 調整控制項尺寸 */
+    .btn {
+        min-height: 40px;
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .form-range {
+        height: 1.5rem;
+    }
+    
+    .form-range::-webkit-slider-thumb {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .form-range::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+    }
+    
+    /* 位置按鈕在橫向模式下較小 */
+    .btn-outline-secondary {
+        min-height: 40px;
+        font-size: 1rem;
+        padding: 0.5rem;
+    }
+    
+    /* 底部操作按鈕調整 */
+    .mobile-fixed-actions {
+        padding: 0.75rem 1rem;
+    }
+    
+    .mobile-fixed-actions .btn {
+        min-height: 40px;
+        font-size: 0.9rem;
+    }
+    
+    /* 為底部按鈕預留較少空間 */
+    .mobile-layout main {
+        padding-bottom: 80px;
+    }
+}
+
+/* 手機直向模式特殊樣式 */
+@media (max-width: 767.98px) and (orientation: portrait) {
+    /* 恢復正常間距 */
+    main {
+        margin-top: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* 預覽區域較高 */
+    #preview-area {
+        min-height: 250px;
+    }
+    
+    #preview-canvas {
+        max-height: 300px;
+    }
+    
+    /* 為底部按鈕預留正常空間 */
+    .mobile-layout main {
+        padding-bottom: 100px;
+    }
+}
+
+/* 平板橫向模式樣式 */
+@media (min-width: 768px) and (max-width: 991.98px) and (orientation: landscape) {
+    /* 利用橫向空間優化佈局 */
+    .row {
+        align-items: flex-start;
+    }
+    
+    .col-lg-4 {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    #preview-area {
+        min-height: 300px;
+        max-height: 70vh;
+    }
+    
+    #preview-canvas {
+        max-height: 400px;
+    }
+}
+
+/* 平板直向模式樣式 */
+@media (min-width: 768px) and (max-width: 991.98px) and (orientation: portrait) {
+    /* 直向時使用單欄佈局 */
+    .col-lg-4,
+    .col-lg-8 {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    #preview-area {
+        min-height: 400px;
+    }
+    
+    #preview-canvas {
+        max-height: 500px;
+    }
+}
+
+/* 方向變化動畫 */
+@media (prefers-reduced-motion: no-preference) {
+    .orientation-landscape,
+    .orientation-portrait {
+        transition: all 0.3s ease;
+    }
+    
+    #preview-area,
+    #preview-canvas,
+    .card,
+    .mobile-fixed-actions {
+        transition: all 0.3s ease;
+    }
+}
+
+/* 方向變化時的載入指示器 */
+.orientation-changing {
+    position: relative;
+    overflow: hidden;
+}
+
+.orientation-changing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: orientationChangeShimmer 1s ease-in-out;
+    z-index: 1;
+}
+
+@keyframes orientationChangeShimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
     }
 }

@@ -232,10 +232,67 @@
 
                     <!-- Action Buttons -->
                     <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-success btn-lg" id="download-btn" disabled>
-                            <i class="bi bi-download me-2"></i>
-                            下載圖片
-                        </button>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-success btn-lg" id="download-btn" disabled>
+                                <i class="bi bi-download me-2"></i>
+                                下載圖片
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-lg dropdown-toggle dropdown-toggle-split" 
+                                    id="download-options-btn" data-bs-toggle="dropdown" aria-expanded="false" disabled>
+                                <span class="visually-hidden">下載選項</span>
+                            </button>
+                            <ul class="dropdown-menu" id="download-options-menu">
+                                <li>
+                                    <a class="dropdown-item" href="#" id="download-png">
+                                        <i class="bi bi-file-earmark-image me-2"></i>
+                                        下載為 PNG (高品質)
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" id="download-jpg">
+                                        <i class="bi bi-file-earmark-image-fill me-2"></i>
+                                        下載為 JPG (較小檔案)
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" id="download-original-size">
+                                        <i class="bi bi-arrows-fullscreen me-2"></i>
+                                        下載原始尺寸
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" id="download-preview-size">
+                                        <i class="bi bi-aspect-ratio me-2"></i>
+                                        下載預覽尺寸
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <!-- 下載狀態指示器 -->
+                        <div id="download-status" class="d-none">
+                            <div class="alert alert-info d-flex align-items-center" role="alert">
+                                <div class="spinner-border spinner-border-sm me-3" role="status">
+                                    <span class="visually-hidden">處理中...</span>
+                                </div>
+                                <div>
+                                    <strong>處理中...</strong>
+                                    <div class="small" id="download-status-text">正在生成高品質圖片</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 下載成功指示器 -->
+                        <div id="download-success" class="d-none">
+                            <div class="alert alert-success d-flex align-items-center" role="alert">
+                                <i class="bi bi-check-circle-fill me-3 text-success"></i>
+                                <div>
+                                    <strong>下載成功！</strong>
+                                    <div class="small" id="download-success-text">圖片已儲存到您的裝置</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -257,6 +314,30 @@
             </div>
         </div>
     </main>
+
+    <!-- Mobile Fixed Action Buttons (Hidden by default, shown on mobile) -->
+    <div id="mobile-fixed-actions" class="mobile-fixed-actions d-none">
+        <div class="d-grid gap-2">
+            <button type="button" class="btn btn-success btn-lg" id="mobile-download-btn" disabled>
+                <i class="bi bi-download me-2"></i>
+                下載圖片
+            </button>
+            <div class="row g-2">
+                <div class="col-6">
+                    <button type="button" class="btn btn-outline-success" id="mobile-download-png" disabled>
+                        <i class="bi bi-file-earmark-image me-1"></i>
+                        PNG
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button type="button" class="btn btn-outline-success" id="mobile-download-jpg" disabled>
+                        <i class="bi bi-file-earmark-image-fill me-1"></i>
+                        JPG
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="bg-light py-3 mt-5">
