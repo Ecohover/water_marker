@@ -10,7 +10,7 @@ class WatermarkApp {
         this.imageData = null;
         this.canvas = null;
         this.context = null;
-        
+
         // 浮水印配置
         this.watermarkConfig = {
             type: 'preset',
@@ -23,13 +23,13 @@ class WatermarkApp {
             x: 0,
             y: 0
         };
-        
+
         // 視圖狀態
         this.zoomLevel = 1;
         this.minZoom = 0.1;
         this.maxZoom = 3;
         this.isEmbedded = window.self !== window.top;
-        
+
         // 拖拽狀態管理
         this.isDragging = false;
         this.dragStartX = 0;
@@ -37,11 +37,19 @@ class WatermarkApp {
         this.dragOffsetX = 0;
         this.dragOffsetY = 0;
         this.watermarkBounds = { x: 0, y: 0, width: 0, height: 0 };
-        
+
+        // 圖片處理配置
+        this.imageProcessing = {
+            rotation: 0,
+            cropArea: null,
+            originalImage: null,
+            isCropping: false
+        };
+
         // 效能優化 - 防抖動和節流
         this.debounceTimers = new Map();
         this.throttleTimers = new Map();
-        
+
         // 模組整合狀態
         this.modules = {
             errorHandler: null,
@@ -51,11 +59,11 @@ class WatermarkApp {
             downloadManager: null,
             responsiveHandler: null
         };
-        
+
         // 初始化標記
         this.isInitialized = false;
         this.initializationPromise = null;
-        
+
         this.init();
     }
 
@@ -68,7 +76,7 @@ class WatermarkApp {
             processFile: (file) => this.processImageFile(file),
             supportedFormats: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'],
             maxFileSize: 10 * 1024 * 1024, // 10MB
-            
+
             // 效能優化的檔案處理
             processFileOptimized: async (file) => {
                 return this._processFileWithOptimization(file);
@@ -84,10 +92,10 @@ class WatermarkApp {
             setupCanvas: (image) => this.setupCanvas(image),
             renderWatermark: () => this.renderWatermark(),
             updatePreview: () => this.updatePreview(),
-            
+
             // 優化的渲染方法
             renderOptimized: () => this._renderWithOptimization(),
-            
+
             // 批次渲染支援
             batchRender: (operations) => this._batchRenderOperations(operations)
         };
@@ -100,10 +108,10 @@ class WatermarkApp {
         return {
             downloadImage: (format) => this.downloadImage(format),
             generateBlob: (format, quality) => this._generateImageBlob(format, quality),
-            
+
             // 優化的下載方法
             downloadOptimized: (options) => this._downloadWithOptimization(options),
-            
+
             // 批次下載支援
             batchDownload: (formats) => this._batchDownload(formats)
         };
@@ -151,30 +159,30 @@ class WatermarkApp {
                     reader.readAsDataURL(file);
                 };
             `;
-            
+
             const blob = new Blob([workerCode], { type: 'application/javascript' });
             const worker = new Worker(URL.createObjectURL(blob));
-            
+
             worker.onmessage = (e) => {
                 const { success, result, error } = e.data;
                 worker.terminate();
                 URL.revokeObjectURL(blob);
-                
+
                 if (success) {
                     resolve(result);
                 } else {
                     reject(new Error(error));
                 }
             };
-            
+
             worker.onerror = (error) => {
                 worker.terminate();
                 URL.revokeObjectURL(blob);
                 reject(error);
             };
-            
+
             worker.postMessage({ file, maxSize: this.modules.fileProcessor.maxFileSize });
-            
+
         } catch (error) {
             // 降級到標準處理
             this._processFileStandard(file, resolve, reject);
@@ -186,15 +194,15 @@ class WatermarkApp {
      */
     _processFileStandard(file, resolve, reject) {
         const reader = new FileReader();
-        
+
         reader.onload = (e) => {
             resolve(e.target.result);
         };
-        
+
         reader.onerror = (error) => {
             reject(error);
         };
-        
+
         reader.readAsDataURL(file);
     }
 
@@ -206,7 +214,7 @@ class WatermarkApp {
         if (this.renderAnimationFrame) {
             cancelAnimationFrame(this.renderAnimationFrame);
         }
-        
+
         this.renderAnimationFrame = requestAnimationFrame(() => {
             this._performOptimizedRender();
         });
@@ -219,18 +227,18 @@ class WatermarkApp {
         if (!this.canvas || !this.context || !this.imageData) {
             return;
         }
-        
+
         // 使用離屏 Canvas 提升效能
         const offscreenCanvas = this._getOffscreenCanvas();
         const offscreenContext = offscreenCanvas.getContext('2d');
-        
+
         // 在離屏 Canvas 上渲染
         this._renderToOffscreenCanvas(offscreenContext);
-        
+
         // 將結果複製到主 Canvas
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.context.drawImage(offscreenCanvas, 0, 0);
-        
+
         // 更新效能指標
         this.performanceMetrics.renderCount++;
     }
@@ -242,14 +250,14 @@ class WatermarkApp {
         if (!this.offscreenCanvas) {
             this.offscreenCanvas = document.createElement('canvas');
         }
-        
+
         // 確保尺寸匹配
-        if (this.offscreenCanvas.width !== this.canvas.width || 
+        if (this.offscreenCanvas.width !== this.canvas.width ||
             this.offscreenCanvas.height !== this.canvas.height) {
             this.offscreenCanvas.width = this.canvas.width;
             this.offscreenCanvas.height = this.canvas.height;
         }
-        
+
         return this.offscreenCanvas;
     }
 
@@ -266,7 +274,7 @@ class WatermarkApp {
                 this.canvas.height
             );
         }
-        
+
         // 繪製浮水印
         this._renderWatermarkToContext(context);
     }
@@ -277,22 +285,22 @@ class WatermarkApp {
     _renderWatermarkToContext(context) {
         const text = this.getWatermarkText();
         if (!text) return;
-        
+
         context.save();
-        
+
         // 設定浮水印樣式
         context.globalAlpha = this.watermarkConfig.opacity;
         context.font = `${this.watermarkConfig.fontSize}px Arial`;
         context.fillStyle = this.watermarkConfig.color;
         context.textAlign = 'left';
         context.textBaseline = 'top';
-        
+
         // 計算位置
         const position = this.calculateWatermarkPosition(text);
-        
+
         // 繪製浮水印
         context.fillText(text, position.x, position.y);
-        
+
         context.restore();
     }
 
@@ -303,24 +311,24 @@ class WatermarkApp {
         return new Promise((resolve) => {
             const batchSize = 5;
             let currentBatch = 0;
-            
+
             const processBatch = () => {
                 const start = currentBatch * batchSize;
                 const end = Math.min(start + batchSize, operations.length);
-                
+
                 for (let i = start; i < end; i++) {
                     operations[i]();
                 }
-                
+
                 currentBatch++;
-                
+
                 if (end < operations.length) {
                     requestAnimationFrame(processBatch);
                 } else {
                     resolve();
                 }
             };
-            
+
             processBatch();
         });
     }
@@ -335,7 +343,7 @@ class WatermarkApp {
             filename = null,
             showProgress = true
         } = options;
-        
+
         try {
             if (showProgress) {
                 this.showOperationProgress('生成高品質圖片', [
@@ -346,21 +354,21 @@ class WatermarkApp {
                     { name: '開始下載', progress: 100 }
                 ]);
             }
-            
+
             // 使用高品質渲染
             const blob = await this._generateHighQualityBlob(format, quality);
-            
+
             // 生成檔案名
             const finalFilename = filename || this._generateDownloadFilename(format);
-            
+
             // 執行下載
             this._performDownload(blob, finalFilename);
-            
+
             if (showProgress) {
                 this.hideOperationProgress();
                 this.showSuccessMessage('圖片下載成功');
             }
-            
+
         } catch (error) {
             if (showProgress) {
                 this.hideOperationProgress();
@@ -377,16 +385,16 @@ class WatermarkApp {
             // 創建高解析度 Canvas
             const highResCanvas = document.createElement('canvas');
             const scale = 2; // 2x 解析度
-            
+
             highResCanvas.width = this.canvas.width * scale;
             highResCanvas.height = this.canvas.height * scale;
-            
+
             const highResContext = highResCanvas.getContext('2d');
             highResContext.scale(scale, scale);
-            
+
             // 渲染到高解析度 Canvas
             this._renderToOffscreenCanvas(highResContext);
-            
+
             // 轉換為 Blob
             highResCanvas.toBlob((blob) => {
                 if (blob) {
@@ -405,13 +413,13 @@ class WatermarkApp {
         if (performance.memory) {
             this.performanceMetrics.memoryUsage = performance.memory.usedJSHeapSize;
         }
-        
+
         // 檢查記憶體洩漏
         if (this.performanceMetrics.memoryUsage > 100 * 1024 * 1024) { // 100MB
             console.warn('⚠️ 記憶體使用量過高:', this.performanceMetrics.memoryUsage);
             this._performMemoryCleanup();
         }
-        
+
         // 記錄效能數據
         console.log('📊 效能指標:', {
             renderCount: this.performanceMetrics.renderCount,
@@ -429,17 +437,17 @@ class WatermarkApp {
             this.offscreenCanvas.width = 1;
             this.offscreenCanvas.height = 1;
         }
-        
+
         // 清理快取的圖片資料
         if (this.imageDataCache) {
             this.imageDataCache.clear();
         }
-        
+
         // 強制垃圾回收（如果支援）
         if (window.gc) {
             window.gc();
         }
-        
+
         console.log('🧹 記憶體清理完成');
     }
 
@@ -453,7 +461,7 @@ class WatermarkApp {
             performance: this.performanceMetrics,
             errors: []
         };
-        
+
         // 檢查各模組狀態
         for (const [name, module] of Object.entries(this.modules)) {
             healthStatus.modules[name] = {
@@ -461,18 +469,18 @@ class WatermarkApp {
                 functional: this._testModuleFunctionality(name, module)
             };
         }
-        
+
         // 檢查 DOM 狀態
         healthStatus.dom = {
             elementsPresent: this._checkRequiredElements(),
             eventListenersActive: this._checkEventListeners()
         };
-        
+
         // 記錄健康狀態
         if (this.isDebugMode()) {
             console.log('🏥 健康檢查結果:', healthStatus);
         }
-        
+
         // 如果發現問題，嘗試自動修復
         this._attemptAutoRepair(healthStatus);
     }
@@ -506,19 +514,19 @@ class WatermarkApp {
      */
     _attemptAutoRepair(healthStatus) {
         let repairAttempts = 0;
-        
+
         // 修復缺失的 DOM 元素
         if (!healthStatus.dom.elementsPresent) {
             this._repairDOMElements();
             repairAttempts++;
         }
-        
+
         // 修復失效的事件監聽器
         if (!healthStatus.dom.eventListenersActive) {
             this._repairEventListeners();
             repairAttempts++;
         }
-        
+
         // 修復失效的模組
         for (const [name, status] of Object.entries(healthStatus.modules)) {
             if (!status.functional) {
@@ -526,7 +534,7 @@ class WatermarkApp {
                 repairAttempts++;
             }
         }
-        
+
         if (repairAttempts > 0) {
             console.log(`🔧 執行了 ${repairAttempts} 項自動修復`);
         }
@@ -561,7 +569,7 @@ class WatermarkApp {
         };
 
         console.log('錯誤處理系統已設定');
-        
+
         return {
             handleError: (type, error, context) => this.handleError(type, error, context),
             handleGlobalError: (type, error, details) => this.handleGlobalError(type, error, details),
@@ -579,13 +587,13 @@ class WatermarkApp {
         if (this.debounceTimers.has(key)) {
             clearTimeout(this.debounceTimers.get(key));
         }
-        
+
         // 設定新計時器
         const timerId = setTimeout(() => {
             func();
             this.debounceTimers.delete(key);
         }, delay);
-        
+
         this.debounceTimers.set(key, timerId);
     }
 
@@ -596,13 +604,13 @@ class WatermarkApp {
         if (this.throttleTimers.has(key)) {
             return; // 仍在節流期間
         }
-        
+
         func();
-        
+
         const timerId = setTimeout(() => {
             this.throttleTimers.delete(key);
         }, delay);
-        
+
         this.throttleTimers.set(key, timerId);
     }
 
@@ -632,15 +640,15 @@ class WatermarkApp {
                 // 降級到標準渲染
                 this._performStandardRender();
             }
-            
+
             // 更新浮水印邊界
             this.updateWatermarkBounds();
-            
+
             // 觸發預覽更新事件
             this.eventBus?.dispatchEvent(new CustomEvent('preview-updated', {
                 detail: { timestamp: Date.now() }
             }));
-            
+
         } catch (error) {
             console.error('預覽更新失敗:', error);
             this.handleImageProcessingError(error, '預覽更新');
@@ -653,35 +661,95 @@ class WatermarkApp {
     _performStandardRender() {
         // 清除 Canvas
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // 繪製圖片
+
+        // 繪製圖片（支援旋轉和裁切）
         if (this.imageData && this.imageData.image) {
-            this.context.drawImage(
-                this.imageData.image,
-                0, 0,
-                this.canvas.width,
-                this.canvas.height
-            );
+            this._drawImageWithTransforms();
         }
-        
+
         // 繪製浮水印
         this.renderWatermark();
+
+        // 更新裁切覆蓋層位置
+        if (this.imageProcessing.cropArea) {
+            this.showCropOverlay();
+        }
+    }
+
+    /**
+     * 繪製帶有變換的圖片
+     */
+    _drawImageWithTransforms() {
+        const img = this.imageData.image;
+        const ctx = this.context;
+
+        ctx.save();
+
+        // 計算旋轉中心
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+
+        // 移動到中心點
+        ctx.translate(centerX, centerY);
+
+        // 應用旋轉
+        if (this.imageProcessing.rotation !== 0) {
+            ctx.rotate((this.imageProcessing.rotation * Math.PI) / 180);
+        }
+
+        // 計算繪製尺寸
+        let drawWidth = this.canvas.width;
+        let drawHeight = this.canvas.height;
+
+        // 如果有旋轉90度或270度，需要交換寬高
+        if (this.imageProcessing.rotation === 90 || this.imageProcessing.rotation === 270) {
+            drawWidth = this.canvas.height;
+            drawHeight = this.canvas.width;
+        }
+
+        // 如果有裁切區域，只繪製裁切部分
+        if (this.imageProcessing.cropArea) {
+            const crop = this.imageProcessing.cropArea;
+
+            // 計算原圖中對應的裁切區域
+            const scaleX = img.width / this.canvas.width;
+            const scaleY = img.height / this.canvas.height;
+
+            const sourceX = crop.x * scaleX;
+            const sourceY = crop.y * scaleY;
+            const sourceWidth = crop.width * scaleX;
+            const sourceHeight = crop.height * scaleY;
+
+            // 繪製裁切後的圖片
+            ctx.drawImage(
+                img,
+                sourceX, sourceY, sourceWidth, sourceHeight,
+                -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight
+            );
+        } else {
+            // 繪製完整圖片
+            ctx.drawImage(
+                img,
+                -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight
+            );
+        }
+
+        ctx.restore();
     }
 
     /**
      * 預載入資源
      */
     _preloadResources() {
-        // 預載入常用圖示
-        const icons = ['bi-cloud-upload', 'bi-download', 'bi-check-circle', 'bi-exclamation-triangle'];
-        icons.forEach(icon => {
-            const link = document.createElement('link');
-            link.rel = 'preload';
-            link.as = 'font';
-            link.href = `https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/fonts/bootstrap-icons.woff2`;
-            document.head.appendChild(link);
-        });
-        
+        // 預載入 Bootstrap Icons 字體（正確的 URL）
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'font';
+        link.type = 'font/woff2';
+        link.crossOrigin = 'anonymous';
+        link.href = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.woff2';
+        document.head.appendChild(link);
+
         console.log('✅ 資源預載入完成');
     }
 
@@ -691,7 +759,7 @@ class WatermarkApp {
     _optimizeDOMStructure() {
         // 移除不必要的空白節點
         this._removeEmptyTextNodes(document.body);
-        
+
         // 優化圖片載入
         const images = document.querySelectorAll('img');
         images.forEach(img => {
@@ -699,13 +767,13 @@ class WatermarkApp {
                 img.loading = 'lazy';
             }
         });
-        
+
         // 設定 CSS containment
         const mainContainer = document.querySelector('main');
         if (mainContainer) {
             mainContainer.style.contain = 'layout style paint';
         }
-        
+
         console.log('✅ DOM 結構優化完成');
     }
 
@@ -718,19 +786,19 @@ class WatermarkApp {
             NodeFilter.SHOW_TEXT,
             {
                 acceptNode: (node) => {
-                    return node.textContent.trim() === '' ? 
-                        NodeFilter.FILTER_ACCEPT : 
+                    return node.textContent.trim() === '' ?
+                        NodeFilter.FILTER_ACCEPT :
                         NodeFilter.FILTER_REJECT;
                 }
             }
         );
-        
+
         const emptyNodes = [];
         let node;
         while (node = walker.nextNode()) {
             emptyNodes.push(node);
         }
-        
+
         emptyNodes.forEach(node => {
             if (node.parentNode) {
                 node.parentNode.removeChild(node);
@@ -745,19 +813,19 @@ class WatermarkApp {
         // 設定圖片快取限制
         this.imageDataCache = new Map();
         this.maxCacheSize = 5; // 最多快取5張圖片
-        
+
         // 監聽頁面可見性變化
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this._performMemoryCleanup();
             }
         });
-        
+
         // 監聽記憶體壓力（如果支援）
         if ('memory' in performance) {
             this._setupMemoryPressureHandling();
         }
-        
+
         console.log('✅ 記憶體管理設定完成');
     }
 
@@ -768,13 +836,13 @@ class WatermarkApp {
         const checkMemoryPressure = () => {
             const memInfo = performance.memory;
             const usageRatio = memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit;
-            
+
             if (usageRatio > 0.8) { // 使用超過80%
                 console.warn('⚠️ 記憶體壓力過高，執行清理');
                 this._performMemoryCleanup();
             }
         };
-        
+
         // 每30秒檢查一次記憶體壓力
         setInterval(checkMemoryPressure, 30000);
     }
@@ -801,10 +869,10 @@ class WatermarkApp {
                     }
                 }
             };
-            
+
             window.parent.postMessage(message, '*');
             console.log('📤 已通知父頁面準備就緒');
-            
+
         } catch (error) {
             console.warn('⚠️ 無法通知父頁面:', error);
         }
@@ -815,9 +883,9 @@ class WatermarkApp {
      */
     handleSettingsChange(detail) {
         const { category, key, value, oldValue } = detail;
-        
+
         console.log(`⚙️ 設定變更: ${category}.${key} = ${value} (舊值: ${oldValue})`);
-        
+
         // 根據設定類別執行相應動作
         switch (category) {
             case 'watermark':
@@ -830,7 +898,7 @@ class WatermarkApp {
                 this._applyPerformanceSettings();
                 break;
         }
-        
+
         // 自動儲存設定
         this.debounce('save-settings', () => {
             this.saveUserSettings();
@@ -842,7 +910,7 @@ class WatermarkApp {
      */
     handleImageProcessed(detail) {
         const { success, imageData, processingTime } = detail;
-        
+
         if (success) {
             console.log(`✅ 圖片處理完成，耗時: ${processingTime}ms`);
             this.imageData = imageData;
@@ -857,12 +925,12 @@ class WatermarkApp {
      */
     handleModuleError(detail) {
         const { module, error, context } = detail;
-        
+
         console.error(`❌ 模組錯誤 [${module}]:`, error);
-        
+
         // 嘗試恢復模組
         this._attemptModuleRecovery(module, error);
-        
+
         // 更新錯誤計數
         this.performanceMetrics.errorCount++;
     }
@@ -872,7 +940,7 @@ class WatermarkApp {
      */
     _attemptModuleRecovery(moduleName, error) {
         console.log(`🔧 嘗試恢復模組: ${moduleName}`);
-        
+
         try {
             switch (moduleName) {
                 case 'canvasRenderer':
@@ -888,10 +956,10 @@ class WatermarkApp {
                     console.warn(`⚠️ 不知道如何恢復模組: ${moduleName}`);
                     return false;
             }
-            
+
             console.log(`✅ 模組 ${moduleName} 恢復成功`);
             return true;
-            
+
         } catch (recoveryError) {
             console.error(`❌ 模組 ${moduleName} 恢復失敗:`, recoveryError);
             return false;
@@ -908,7 +976,7 @@ class WatermarkApp {
             '#control-panel',
             '#download-btn'
         ];
-        
+
         return requiredElements.every(selector => {
             const element = document.querySelector(selector);
             return element !== null;
@@ -929,7 +997,7 @@ class WatermarkApp {
      */
     _repairDOMElements() {
         console.log('🔧 修復 DOM 元素...');
-        
+
         // 檢查並修復檔案輸入
         if (!document.getElementById('file-input')) {
             const fileInput = document.createElement('input');
@@ -939,7 +1007,7 @@ class WatermarkApp {
             fileInput.accept = 'image/*';
             document.body.appendChild(fileInput);
         }
-        
+
         // 檢查並修復 Canvas
         if (!document.getElementById('preview-canvas')) {
             const canvas = document.createElement('canvas');
@@ -957,13 +1025,13 @@ class WatermarkApp {
      */
     _repairEventListeners() {
         console.log('🔧 修復事件監聽器...');
-        
+
         // 重新設定關鍵事件監聽器
         const fileInput = document.getElementById('file-input');
         if (fileInput && !fileInput.onchange) {
             fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         }
-        
+
         const canvas = document.getElementById('preview-canvas');
         if (canvas && !canvas.onmousedown) {
             this._setupCanvasDragEvents(canvas);
@@ -975,7 +1043,7 @@ class WatermarkApp {
      */
     _repairModule(moduleName) {
         console.log(`🔧 修復模組: ${moduleName}`);
-        
+
         try {
             switch (moduleName) {
                 case 'errorHandler':
@@ -1006,8 +1074,8 @@ class WatermarkApp {
      * 是否為除錯模式
      */
     isDebugMode() {
-        return localStorage.getItem('watermark-debug') === 'true' || 
-               new URLSearchParams(window.location.search).has('debug');
+        return localStorage.getItem('watermark-debug') === 'true' ||
+            new URLSearchParams(window.location.search).has('debug');
     }
 
     /**
@@ -1015,7 +1083,7 @@ class WatermarkApp {
      */
     resetToDefaultSettings() {
         console.log('🔄 重置為預設設定');
-        
+
         this.watermarkConfig = {
             type: 'preset',
             text: '僅供身分驗證使用',
@@ -1027,10 +1095,10 @@ class WatermarkApp {
             x: 0,
             y: 0
         };
-        
+
         // 應用到 UI
         this.applySettingsToUI();
-        
+
         // 儲存預設設定
         this.saveUserSettings();
     }
@@ -1041,11 +1109,11 @@ class WatermarkApp {
     _applyUISettings() {
         // 根據 UI 設定調整介面
         const uiSettings = this.getSetting('ui', {});
-        
+
         if (uiSettings.theme) {
             document.body.setAttribute('data-theme', uiSettings.theme);
         }
-        
+
         if (uiSettings.compactMode) {
             document.body.classList.toggle('compact-mode', uiSettings.compactMode);
         }
@@ -1056,12 +1124,12 @@ class WatermarkApp {
      */
     _applyPerformanceSettings() {
         const perfSettings = this.getSetting('performance', {});
-        
+
         // 調整渲染品質
         if (perfSettings.renderQuality) {
             this.renderQuality = perfSettings.renderQuality;
         }
-        
+
         // 調整防抖動延遲
         if (perfSettings.debounceDelay) {
             this.defaultDebounceDelay = perfSettings.debounceDelay;
@@ -1073,39 +1141,198 @@ class WatermarkApp {
      */
     cleanup() {
         console.log('🧹 清理應用程式資源...');
-        
+
         // 清理計時器
         if (this.performanceInterval) {
             clearInterval(this.performanceInterval);
         }
-        
+
         if (this.healthCheckInterval) {
             clearInterval(this.healthCheckInterval);
         }
-        
+
         // 清理防抖動和節流計時器
         this.debounceTimers.forEach(timerId => clearTimeout(timerId));
         this.throttleTimers.forEach(timerId => clearTimeout(timerId));
-        
+
         // 清理 Canvas 資源
         if (this.offscreenCanvas) {
             this.offscreenCanvas.width = 1;
             this.offscreenCanvas.height = 1;
         }
-        
+
         // 清理快取
         if (this.imageDataCache) {
             this.imageDataCache.clear();
         }
-        
+
         // 移除事件監聽器
         if (this.eventBus) {
             this.eventBus.removeEventListener('settings-changed', this.handleSettingsChange);
             this.eventBus.removeEventListener('image-processed', this.handleImageProcessed);
             this.eventBus.removeEventListener('error-occurred', this.handleModuleError);
         }
-        
+
         console.log('✅ 資源清理完成');
+    }
+
+    /**
+     * 處理旋轉變更
+     */
+    handleRotationChange(e) {
+        const rotation = parseInt(e.target.value);
+        this.imageProcessing.rotation = rotation;
+        this.updatePreview();
+        console.log('旋轉角度已變更:', rotation + '°');
+    }
+
+    /**
+     * 設定裁切比例
+     */
+    setCropRatio(widthRatio, heightRatio) {
+        if (!this.imageData || !this.imageData.image) {
+            this.showWarningMessage('請先上傳圖片');
+            return;
+        }
+
+        const canvas = this.elements.previewCanvas;
+
+        // 計算裁切區域
+        const canvasAspectRatio = canvas.width / canvas.height;
+        const cropAspectRatio = widthRatio / heightRatio;
+
+        let cropWidth, cropHeight;
+
+        if (cropAspectRatio > canvasAspectRatio) {
+            // 裁切區域較寬，以寬度為準
+            cropWidth = canvas.width * 0.8;
+            cropHeight = cropWidth / cropAspectRatio;
+        } else {
+            // 裁切區域較高，以高度為準
+            cropHeight = canvas.height * 0.8;
+            cropWidth = cropHeight * cropAspectRatio;
+        }
+
+        // 居中放置
+        const x = (canvas.width - cropWidth) / 2;
+        const y = (canvas.height - cropHeight) / 2;
+
+        this.imageProcessing.cropArea = {
+            x: x,
+            y: y,
+            width: cropWidth,
+            height: cropHeight
+        };
+
+        this.showCropOverlay();
+        this.updatePreview();
+
+        console.log(`裁切比例已設定: ${widthRatio}:${heightRatio}`);
+    }
+
+    /**
+     * 重置裁切
+     */
+    resetCrop() {
+        this.imageProcessing.cropArea = null;
+        this.hideCropOverlay();
+        this.updatePreview();
+        console.log('裁切已重置');
+    }
+
+    /**
+     * 顯示裁切覆蓋層
+     */
+    showCropOverlay() {
+        if (!this.elements.cropOverlay || !this.imageProcessing.cropArea) return;
+
+        const overlay = this.elements.cropOverlay;
+        const cropFrame = overlay.querySelector('.crop-frame');
+        const canvas = this.elements.previewCanvas;
+        const canvasRect = canvas.getBoundingClientRect();
+        const previewRect = this.elements.previewArea.getBoundingClientRect();
+
+        // 計算相對於預覽區域的位置
+        const scaleX = canvasRect.width / canvas.width;
+        const scaleY = canvasRect.height / canvas.height;
+
+        const left = (canvasRect.left - previewRect.left) + (this.imageProcessing.cropArea.x * scaleX);
+        const top = (canvasRect.top - previewRect.top) + (this.imageProcessing.cropArea.y * scaleY);
+        const width = this.imageProcessing.cropArea.width * scaleX;
+        const height = this.imageProcessing.cropArea.height * scaleY;
+
+        cropFrame.style.left = left + 'px';
+        cropFrame.style.top = top + 'px';
+        cropFrame.style.width = width + 'px';
+        cropFrame.style.height = height + 'px';
+
+        overlay.classList.remove('d-none');
+    }
+
+    /**
+     * 隱藏裁切覆蓋層
+     */
+    hideCropOverlay() {
+        if (this.elements.cropOverlay) {
+            this.elements.cropOverlay.classList.add('d-none');
+        }
+    }
+
+    /**
+     * 套用身分證預設設定
+     */
+    applyIdCardPreset() {
+        if (!this.imageData || !this.imageData.image) {
+            this.showWarningMessage('請先上傳圖片');
+            return;
+        }
+
+        // 1. 設定身分證裁切比例 (85.6mm x 54mm)
+        this.setCropRatio(85.6, 54);
+
+        // 2. 根據圖片方向自動旋轉
+        const img = this.imageData.image;
+        if (img.width < img.height) {
+            // 直向圖片，旋轉90度
+            this.imageProcessing.rotation = 90;
+            const rotate90 = document.getElementById('rotate-90');
+            if (rotate90) rotate90.checked = true;
+        } else {
+            // 橫向圖片，不旋轉
+            this.imageProcessing.rotation = 0;
+            const rotate0 = document.getElementById('rotate-0');
+            if (rotate0) rotate0.checked = true;
+        }
+
+        // 3. 設定浮水印為身分證專用
+        this.watermarkConfig.type = 'preset';
+        this.watermarkConfig.presetType = 'taiwan-id';
+        this.watermarkConfig.opacity = 0.6;
+        this.watermarkConfig.fontSize = 18;
+
+        // 4. 更新 UI
+        const presetType = document.getElementById('preset-type');
+        const presetSelect = document.getElementById('preset-select');
+        const opacityRange = document.getElementById('opacity-range');
+        const opacityValue = document.getElementById('opacity-value');
+        const fontsizeRange = document.getElementById('fontsize-range');
+        const fontsizeValue = document.getElementById('fontsize-value');
+
+        if (presetType) presetType.checked = true;
+        if (presetSelect) presetSelect.value = 'taiwan-id';
+        if (opacityRange) opacityRange.value = 60;
+        if (opacityValue) opacityValue.textContent = '60%';
+        if (fontsizeRange) fontsizeRange.value = 18;
+        if (fontsizeValue) fontsizeValue.textContent = '18px';
+
+        // 5. 顯示預設選項，隱藏自訂選項
+        if (this.elements.presetOptions) this.elements.presetOptions.classList.remove('d-none');
+        if (this.elements.customOptions) this.elements.customOptions.classList.add('d-none');
+
+        this.updatePreview();
+
+        this.showSuccessMessage('已套用身分證最佳化設定');
+        console.log('身分證預設設定已套用');
     }
 
     /**
@@ -1113,22 +1340,22 @@ class WatermarkApp {
      */
     setupUXEnhancements() {
         console.log('🎨 設定 UX 增強功能...');
-        
+
         // 設定頁面載入動畫
         this.setupPageLoadAnimations();
-        
+
         // 設定互動回饋
         this.setupInteractionFeedback();
-        
+
         // 設定無障礙功能
         this.setupAccessibilityFeatures();
-        
+
         // 設定效能監控 UI
         this.setupPerformanceUI();
-        
+
         // 設定載入狀態管理
         this.setupLoadingStateManager();
-        
+
         console.log('✅ UX 增強功能設定完成');
     }
 
@@ -1193,7 +1420,7 @@ class WatermarkApp {
                 uploadSection.classList.remove('state-processing');
                 uploadSection.classList.add('state-success');
                 this.showDragFeedback('檔案接收成功！', 'success');
-                
+
                 setTimeout(() => {
                     uploadSection.classList.remove('state-success');
                     this.hideDragFeedback();
@@ -1229,16 +1456,16 @@ class WatermarkApp {
     setupAccessibilityFeatures() {
         // 添加跳過連結
         this.addSkipLinks();
-        
+
         // 設定鍵盤導航
         this.setupKeyboardNavigation();
-        
+
         // 設定螢幕閱讀器支援
         this.setupScreenReaderSupport();
-        
+
         // 設定高對比模式檢測
         this.setupHighContrastMode();
-        
+
         // 設定動畫偏好檢測
         this.setupMotionPreferences();
     }
@@ -1251,9 +1478,9 @@ class WatermarkApp {
         skipLink.href = '#main-content';
         skipLink.className = 'skip-link';
         skipLink.textContent = '跳到主要內容';
-        
+
         document.body.insertBefore(skipLink, document.body.firstChild);
-        
+
         // 為主要內容添加 ID
         const mainContent = document.querySelector('main');
         if (mainContent) {
@@ -1366,7 +1593,7 @@ class WatermarkApp {
         const announcer = document.getElementById('status-announcer');
         if (announcer) {
             announcer.textContent = message;
-            
+
             // 清除訊息以便下次公告
             setTimeout(() => {
                 announcer.textContent = '';
@@ -1380,7 +1607,7 @@ class WatermarkApp {
     setupHighContrastMode() {
         // 檢測系統高對比偏好
         const highContrastQuery = window.matchMedia('(prefers-contrast: high)');
-        
+
         const applyHighContrast = (matches) => {
             if (matches) {
                 document.body.classList.add('high-contrast-mode');
@@ -1412,7 +1639,7 @@ class WatermarkApp {
      */
     setupMotionPreferences() {
         const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        
+
         const applyMotionPreference = (matches) => {
             if (matches) {
                 document.body.classList.add('reduced-motion');
@@ -1452,7 +1679,7 @@ class WatermarkApp {
 
         const metrics = this.performanceMetrics;
         const memoryMB = Math.round(metrics.memoryUsage / 1024 / 1024);
-        
+
         let status = 'good';
         if (memoryMB > 50 || metrics.errorCount > 5) {
             status = 'warning';
@@ -1514,7 +1741,7 @@ class WatermarkApp {
      */
     addClickFeedback(button) {
         button.classList.add('clicked');
-        
+
         // 創建漣漪效果
         const ripple = document.createElement('span');
         ripple.className = 'ripple-effect';
@@ -1533,10 +1760,10 @@ class WatermarkApp {
      */
     validateInputWithFeedback(input) {
         const isValid = this.validateInput(input);
-        
+
         // 移除現有狀態
         input.classList.remove('form-field-error', 'state-success', 'state-error');
-        
+
         // 移除現有錯誤訊息
         const existingError = input.parentNode.querySelector('.field-error-message');
         if (existingError) {
@@ -1549,7 +1776,7 @@ class WatermarkApp {
         } else {
             input.classList.add('form-field-error', 'state-error');
             input.setAttribute('aria-invalid', 'true');
-            
+
             // 添加錯誤訊息
             const errorMessage = this.getInputErrorMessage(input);
             if (errorMessage) {
@@ -1746,10 +1973,10 @@ class WatermarkApp {
     performNonCriticalTasks() {
         // 預載入圖示字體
         this._preloadIconFont();
-        
+
         // 初始化分析
         this._initializeAnalytics();
-        
+
         // 設定效能監控
         this._setupPerformanceObserver();
     }
@@ -1758,12 +1985,18 @@ class WatermarkApp {
      * 預載入圖示字體
      */
     _preloadIconFont() {
+        // 檢查是否已經預載入過
+        const existingLink = document.querySelector('link[href*="bootstrap-icons.woff2"]');
+        if (existingLink) {
+            return; // 已經預載入過，避免重複
+        }
+
         const link = document.createElement('link');
         link.rel = 'preload';
         link.as = 'font';
         link.type = 'font/woff2';
         link.crossOrigin = 'anonymous';
-        link.href = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/fonts/bootstrap-icons.woff2';
+        link.href = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.woff2';
         document.head.appendChild(link);
     }
 
@@ -1801,7 +2034,7 @@ class WatermarkApp {
      */
     handleGlobalError(type, error, details = {}) {
         console.error(`${type}:`, error, details);
-        
+
         this.errorState.hasError = true;
         this.errorState.lastError = error;
         this.errorState.errorCount++;
@@ -1821,7 +2054,7 @@ class WatermarkApp {
      */
     handleCriticalError(message, error) {
         console.error('關鍵錯誤:', message, error);
-        
+
         this.errorState.hasError = true;
         this.errorState.lastError = error;
 
@@ -2124,10 +2357,10 @@ class WatermarkApp {
     handleRetryAction(alertId) {
         if (this.retryActions && this.retryActions[alertId]) {
             const retryAction = this.retryActions[alertId];
-            
+
             // 隱藏錯誤警告
             this.hideErrorAlert(alertId);
-            
+
             // 執行重試動作
             try {
                 retryAction();
@@ -2190,11 +2423,11 @@ class WatermarkApp {
         if (this.elements.fileInput) {
             this.elements.fileInput.value = '';
         }
-        
+
         if (this.elements.uploadSection) {
             this.elements.uploadSection.classList.remove('loading');
         }
-        
+
         this.hideLoadingSpinner();
     }
 
@@ -2315,7 +2548,7 @@ class WatermarkApp {
 
             // 儲存到本地儲存
             localStorage.setItem('watermark-tool-errors', JSON.stringify(errorLogs));
-            
+
             console.log('錯誤已記錄到本地儲存');
         } catch (e) {
             console.warn('無法記錄錯誤到本地儲存:', e);
@@ -2378,7 +2611,7 @@ class WatermarkApp {
             retryCount: 0,
             maxRetries: 3
         };
-        
+
         this.hideErrorAlerts();
         console.log('錯誤狀態已重置');
     }
@@ -2401,25 +2634,25 @@ class WatermarkApp {
     async _performInitialization() {
         try {
             console.log('🚀 開始初始化圖片浮水印工具...');
-            
+
             // 階段 1: 核心系統初始化
             await this._initializeCoreModules();
-            
+
             // 階段 2: UI 和事件系統初始化
             await this._initializeUIModules();
-            
+
             // 階段 3: 功能模組整合
             await this._integrateModules();
-            
+
             // 階段 4: 最終驗證和優化
             await this._finalizeInitialization();
-            
+
             this.isInitialized = true;
             console.log('✅ 圖片浮水印工具初始化完成');
-            
+
             // 觸發初始化完成事件
             this._dispatchInitializationComplete();
-            
+
         } catch (error) {
             console.error('❌ 初始化失敗:', error);
             this.handleCriticalError('應用程式初始化失敗', error);
@@ -2432,22 +2665,22 @@ class WatermarkApp {
      */
     async _initializeCoreModules() {
         console.log('📦 初始化核心模組...');
-        
+
         // 錯誤處理系統 - 最優先
         this.modules.errorHandler = this.setupErrorHandling();
-        
+
         // 設定管理系統
         this.modules.settingsManager = this.setupSettingsManager();
-        
+
         // 檔案處理模組
         this.modules.fileProcessor = this.setupFileProcessor();
-        
+
         // Canvas 渲染模組
         this.modules.canvasRenderer = this.setupCanvasRenderer();
-        
+
         // 下載管理模組
         this.modules.downloadManager = this.setupDownloadManager();
-        
+
         console.log('✅ 核心模組初始化完成');
     }
 
@@ -2456,19 +2689,19 @@ class WatermarkApp {
      */
     async _initializeUIModules() {
         console.log('🎨 初始化 UI 模組...');
-        
+
         // 響應式處理器
         this.modules.responsiveHandler = this.setupResponsiveHandlers();
-        
+
         // 事件監聽器
         this.setupEventListeners();
-        
+
         // 嵌入模式檢查
         this.checkEmbeddedMode();
-        
+
         // 預設選項初始化
         this.initializePresetOptions();
-        
+
         console.log('✅ UI 模組初始化完成');
     }
 
@@ -2477,26 +2710,26 @@ class WatermarkApp {
      */
     async _integrateModules() {
         console.log('🔗 整合功能模組...');
-        
+
         // 載入和應用使用者設定
         await this._loadAndApplySettings();
-        
+
         // 設定模組間通訊
         this._setupModuleCommunication();
-        
+
         // 設定效能監控
         this._setupPerformanceMonitoring();
-        
+
         // 設定自動儲存機制
         this.setupAutoSave();
-        
+
         // 設定 UX 增強功能
         this.setupUXEnhancements();
-        
+
         // 優化載入時間和響應速度
         this.optimizeLoadingTime();
         this.optimizeResponseSpeed();
-        
+
         console.log('✅ 模組整合完成');
     }
 
@@ -2505,16 +2738,16 @@ class WatermarkApp {
      */
     async _finalizeInitialization() {
         console.log('🏁 最終化初始化...');
-        
+
         // 驗證所有模組狀態
         this._validateModuleIntegrity();
-        
+
         // 執行初始化後優化
         this._performInitialOptimizations();
-        
+
         // 設定健康檢查
         this._setupHealthCheck();
-        
+
         console.log('✅ 初始化最終化完成');
     }
 
@@ -2525,13 +2758,13 @@ class WatermarkApp {
         try {
             // 載入使用者設定
             this.loadUserSettings();
-            
+
             // 確保設定一致性
             this.ensureSettingsConsistency();
-            
+
             // 應用設定到 UI
             this.applySettingsToUI();
-            
+
             console.log('✅ 設定載入和應用完成');
         } catch (error) {
             console.warn('⚠️ 設定載入失敗，使用預設設定:', error);
@@ -2545,20 +2778,20 @@ class WatermarkApp {
     _setupModuleCommunication() {
         // 建立事件匯流排
         this.eventBus = new EventTarget();
-        
+
         // 設定模組間事件監聽
         this.eventBus.addEventListener('settings-changed', (e) => {
             this.handleSettingsChange(e.detail);
         });
-        
+
         this.eventBus.addEventListener('image-processed', (e) => {
             this.handleImageProcessed(e.detail);
         });
-        
+
         this.eventBus.addEventListener('error-occurred', (e) => {
             this.handleModuleError(e.detail);
         });
-        
+
         console.log('✅ 模組通訊設定完成');
     }
 
@@ -2573,12 +2806,12 @@ class WatermarkApp {
             errorCount: 0,
             memoryUsage: 0
         };
-        
+
         // 定期收集效能數據
         this.performanceInterval = setInterval(() => {
             this._collectPerformanceMetrics();
         }, 30000); // 每30秒收集一次
-        
+
         console.log('✅ 效能監控設定完成');
     }
 
@@ -2588,17 +2821,17 @@ class WatermarkApp {
     _validateModuleIntegrity() {
         const requiredModules = ['errorHandler', 'settingsManager', 'fileProcessor', 'canvasRenderer', 'downloadManager'];
         const missingModules = [];
-        
+
         for (const moduleName of requiredModules) {
             if (!this.modules[moduleName]) {
                 missingModules.push(moduleName);
             }
         }
-        
+
         if (missingModules.length > 0) {
             throw new Error(`缺少必要模組: ${missingModules.join(', ')}`);
         }
-        
+
         console.log('✅ 模組完整性驗證通過');
     }
 
@@ -2608,13 +2841,13 @@ class WatermarkApp {
     _performInitialOptimizations() {
         // 預載入常用資源
         this._preloadResources();
-        
+
         // 優化 DOM 結構
         this._optimizeDOMStructure();
-        
+
         // 設定記憶體管理
         this._setupMemoryManagement();
-        
+
         console.log('✅ 初始化優化完成');
     }
 
@@ -2625,7 +2858,7 @@ class WatermarkApp {
         this.healthCheckInterval = setInterval(() => {
             this._performHealthCheck();
         }, 60000); // 每分鐘檢查一次
-        
+
         console.log('✅ 健康檢查設定完成');
     }
 
@@ -2641,9 +2874,9 @@ class WatermarkApp {
                 initTime: performance.now() - this.performanceMetrics.initTime
             }
         });
-        
+
         window.dispatchEvent(event);
-        
+
         // 如果在嵌入模式，通知父頁面
         if (this.isEmbedded) {
             this._notifyParentOfReadiness();
@@ -2701,6 +2934,19 @@ class WatermarkApp {
         };
 
         console.log('LocalStorage 設定管理系統已設定');
+
+        // 返回設定管理模組物件
+        return {
+            loadSettings: () => this.loadUserSettings(),
+            saveSettings: (settings) => this.saveUserSettings(settings),
+            updateSetting: (path, value) => this.updateSetting(path, value),
+            getSetting: (path, defaultValue) => this.getSetting(path, defaultValue),
+            resetSettings: (category) => this.resetSettings(category),
+            validateSettings: (settings) => this.validateSettings(settings),
+            getDefaultSettings: () => this.getDefaultSettings(),
+            isLoaded: () => this.settingsState.loaded,
+            isDirty: () => this.settingsState.dirty
+        };
     }
 
     /**
@@ -2709,7 +2955,7 @@ class WatermarkApp {
     loadUserSettings() {
         try {
             const stored = localStorage.getItem(this.settingsConfig.storageKey);
-            
+
             if (!stored) {
                 console.log('未找到儲存的設定，使用預設設定');
                 this.userSettings = this.cloneSettings(this.defaultSettings);
@@ -2718,7 +2964,7 @@ class WatermarkApp {
             }
 
             const parsedSettings = JSON.parse(stored);
-            
+
             // 驗證設定格式和版本
             if (!this.validateSettings(parsedSettings)) {
                 console.warn('設定格式無效，使用預設設定');
@@ -2730,21 +2976,21 @@ class WatermarkApp {
 
             // 合併設定（處理新增的設定項目）
             this.userSettings = this.mergeSettings(this.defaultSettings, parsedSettings);
-            
+
             // 更新最後使用時間和會話計數
             this.userSettings.lastUsed.timestamp = new Date().toISOString();
             this.userSettings.lastUsed.sessionCount = (this.userSettings.lastUsed.sessionCount || 0) + 1;
-            
+
             this.settingsState.loaded = true;
             this.settingsState.lastSaved = Date.now();
-            
+
             console.log('使用者設定已載入', this.userSettings);
             return this.userSettings;
-            
+
         } catch (error) {
             console.error('載入設定時發生錯誤:', error);
             this.handleSettingsError('載入設定失敗', error);
-            
+
             // 使用預設設定作為後備
             this.userSettings = this.cloneSettings(this.defaultSettings);
             this.settingsState.loaded = true;
@@ -2775,20 +3021,20 @@ class WatermarkApp {
                     this.userSettings.lastUsed.timestamp = new Date().toISOString();
 
                     const settingsJson = JSON.stringify(this.userSettings);
-                    
+
                     // 檢查儲存大小限制
                     if (settingsJson.length > this.settingsConfig.maxStorageSize) {
                         throw new Error('設定資料過大，超過儲存限制');
                     }
 
                     localStorage.setItem(this.settingsConfig.storageKey, settingsJson);
-                    
+
                     this.settingsState.dirty = false;
                     this.settingsState.lastSaved = Date.now();
-                    
+
                     console.log('使用者設定已儲存');
                     return true;
-                    
+
                 } catch (error) {
                     console.error('儲存設定時發生錯誤:', error);
                     this.handleSettingsError('儲存設定失敗', error);
@@ -2803,7 +3049,7 @@ class WatermarkApp {
                 this.settingsState.autoSaveTimer = setTimeout(saveAction, this.settingsConfig.autoSaveDelay);
                 return true;
             }
-            
+
         } catch (error) {
             console.error('設定儲存程序發生錯誤:', error);
             this.handleSettingsError('設定儲存程序失敗', error);
@@ -2824,7 +3070,7 @@ class WatermarkApp {
             // 使用路徑字串更新巢狀物件
             const pathArray = path.split('.');
             let current = this.userSettings;
-            
+
             // 導航到目標物件
             for (let i = 0; i < pathArray.length - 1; i++) {
                 const key = pathArray[i];
@@ -2833,22 +3079,22 @@ class WatermarkApp {
                 }
                 current = current[key];
             }
-            
+
             // 設定值
             const finalKey = pathArray[pathArray.length - 1];
             const oldValue = current[finalKey];
             current[finalKey] = value;
-            
+
             // 標記為需要儲存
             this.settingsState.dirty = true;
-            
+
             console.log(`設定已更新: ${path} = ${value} (舊值: ${oldValue})`);
-            
+
             // 自動儲存
             this.saveUserSettings();
-            
+
             return true;
-            
+
         } catch (error) {
             console.error('更新設定時發生錯誤:', error);
             this.handleSettingsError('更新設定失敗', error);
@@ -2868,16 +3114,16 @@ class WatermarkApp {
 
             const pathArray = path.split('.');
             let current = this.userSettings;
-            
+
             for (const key of pathArray) {
                 if (current === null || current === undefined || typeof current !== 'object') {
                     return defaultValue;
                 }
                 current = current[key];
             }
-            
+
             return current !== undefined ? current : defaultValue;
-            
+
         } catch (error) {
             console.error('取得設定時發生錯誤:', error);
             return defaultValue;
@@ -2903,15 +3149,15 @@ class WatermarkApp {
                 this.userSettings = this.cloneSettings(this.defaultSettings);
                 console.log('所有設定已重置為預設值');
             }
-            
+
             this.settingsState.dirty = true;
             this.saveUserSettings(true); // 立即儲存
-            
+
             // 觸發設定重置事件
             this.onSettingsReset(category);
-            
+
             return true;
-            
+
         } catch (error) {
             console.error('重置設定時發生錯誤:', error);
             this.handleSettingsError('重置設定失敗', error);
@@ -2963,7 +3209,7 @@ class WatermarkApp {
             }
 
             return true;
-            
+
         } catch (error) {
             console.error('驗證設定時發生錯誤:', error);
             return false;
@@ -2976,17 +3222,17 @@ class WatermarkApp {
     mergeSettings(defaultSettings, userSettings) {
         try {
             const merged = this.cloneSettings(defaultSettings);
-            
+
             // 遞迴合併設定
             const mergeRecursive = (target, source) => {
                 for (const key in source) {
                     if (source.hasOwnProperty(key)) {
-                        if (target.hasOwnProperty(key) && 
-                            typeof target[key] === 'object' && 
+                        if (target.hasOwnProperty(key) &&
+                            typeof target[key] === 'object' &&
                             typeof source[key] === 'object' &&
-                            target[key] !== null && 
+                            target[key] !== null &&
                             source[key] !== null &&
-                            !Array.isArray(target[key]) && 
+                            !Array.isArray(target[key]) &&
                             !Array.isArray(source[key])) {
                             mergeRecursive(target[key], source[key]);
                         } else {
@@ -2995,12 +3241,12 @@ class WatermarkApp {
                     }
                 }
             };
-            
+
             mergeRecursive(merged, userSettings);
-            
+
             console.log('設定已合併');
             return merged;
-            
+
         } catch (error) {
             console.error('合併設定時發生錯誤:', error);
             return this.cloneSettings(defaultSettings);
@@ -3036,23 +3282,23 @@ class WatermarkApp {
 
             const dataStr = JSON.stringify(exportData, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            
+
             const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `watermark-tool-settings-${new Date().toISOString().split('T')[0]}.json`;
-            
+
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
+
             URL.revokeObjectURL(url);
-            
+
             console.log('設定已匯出');
             this.showSuccessMessage('設定已匯出到檔案');
-            
+
             return true;
-            
+
         } catch (error) {
             console.error('匯出設定時發生錯誤:', error);
             this.handleSettingsError('匯出設定失敗', error);
@@ -3067,46 +3313,46 @@ class WatermarkApp {
         return new Promise((resolve, reject) => {
             try {
                 const reader = new FileReader();
-                
+
                 reader.onload = (e) => {
                     try {
                         const importedData = JSON.parse(e.target.result);
-                        
+
                         // 驗證匯入的設定
                         if (!this.validateSettings(importedData)) {
                             throw new Error('匯入的設定格式無效');
                         }
-                        
+
                         // 合併匯入的設定
                         this.userSettings = this.mergeSettings(this.defaultSettings, importedData);
                         this.settingsState.dirty = true;
-                        
+
                         // 儲存設定
                         this.saveUserSettings(true);
-                        
+
                         // 應用設定到 UI
                         this.applySettingsToUI();
-                        
+
                         console.log('設定已匯入');
                         this.showSuccessMessage('設定已成功匯入');
-                        
+
                         resolve(true);
-                        
+
                     } catch (parseError) {
                         console.error('解析匯入檔案時發生錯誤:', parseError);
                         this.handleSettingsError('匯入檔案格式錯誤', parseError);
                         reject(parseError);
                     }
                 };
-                
+
                 reader.onerror = (error) => {
                     console.error('讀取匯入檔案時發生錯誤:', error);
                     this.handleSettingsError('讀取匯入檔案失敗', error);
                     reject(error);
                 };
-                
+
                 reader.readAsText(file);
-                
+
             } catch (error) {
                 console.error('匯入設定時發生錯誤:', error);
                 this.handleSettingsError('匯入設定失敗', error);
@@ -3122,17 +3368,17 @@ class WatermarkApp {
         try {
             localStorage.removeItem(this.settingsConfig.storageKey);
             localStorage.removeItem('watermark-tool-errors'); // 同時清除錯誤記錄
-            
+
             // 重置為預設設定
             this.userSettings = this.cloneSettings(this.defaultSettings);
             this.settingsState.dirty = false;
             this.settingsState.lastSaved = null;
-            
+
             console.log('所有儲存的設定已清除');
             this.showSuccessMessage('所有設定已清除');
-            
+
             return true;
-            
+
         } catch (error) {
             console.error('清除設定時發生錯誤:', error);
             this.handleSettingsError('清除設定失敗', error);
@@ -3168,7 +3414,7 @@ class WatermarkApp {
             }
 
             return stats;
-            
+
         } catch (error) {
             console.error('取得設定統計時發生錯誤:', error);
             return null;
@@ -3180,10 +3426,10 @@ class WatermarkApp {
      */
     handleSettingsError(message, error) {
         console.error(`設定錯誤: ${message}`, error);
-        
+
         // 記錄錯誤但不顯示給使用者（除非是關鍵錯誤）
         this.logErrorToStorage('SettingsError', error, { message });
-        
+
         // 只有在關鍵錯誤時才顯示警告
         if (message.includes('載入') || message.includes('初始化')) {
             this.showWarningMessage(`${message}，將使用預設設定`);
@@ -3199,14 +3445,14 @@ class WatermarkApp {
                 // 重新應用浮水印設定到 UI
                 this.applyWatermarkSettingsToUI();
             }
-            
+
             if (category === 'ui' || !category) {
                 // 重新應用 UI 設定
                 this.applyUISettingsToUI();
             }
-            
+
             console.log(`設定重置事件已處理: ${category || 'all'}`);
-            
+
         } catch (error) {
             console.error('處理設定重置事件時發生錯誤:', error);
         }
@@ -3230,7 +3476,7 @@ class WatermarkApp {
                 if (typeRadio) {
                     typeRadio.checked = true;
                     this.watermarkConfig.type = watermarkSettings.type;
-                    
+
                     // 根據類型顯示對應的選項
                     if (watermarkSettings.type === 'preset') {
                         this.elements.presetOptions?.classList.remove('d-none');
@@ -3355,7 +3601,7 @@ class WatermarkApp {
 
             // 應用浮水印設定
             this.applyWatermarkSettingsToUI();
-            
+
             // 應用 UI 設定
             this.applyUISettingsToUI();
 
@@ -3424,13 +3670,13 @@ class WatermarkApp {
             // 顯示確認對話框
             const categoryText = category ? `${category} ` : '';
             const confirmMessage = `確定要重置${categoryText}設定為預設值嗎？此操作無法復原。`;
-            
+
             if (confirm(confirmMessage)) {
                 const success = this.resetSettings(category);
-                
+
                 if (success) {
                     this.showSuccessMessage(`${categoryText}設定已重置為預設值`);
-                    
+
                     // 重新載入頁面以確保所有設定正確應用
                     setTimeout(() => {
                         window.location.reload();
@@ -3560,7 +3806,7 @@ class WatermarkApp {
     getDefaultValueForPath(path) {
         const pathArray = path.split('.');
         let current = this.defaultSettings;
-        
+
         for (const key of pathArray) {
             if (current && typeof current === 'object' && current.hasOwnProperty(key)) {
                 current = current[key];
@@ -3568,7 +3814,7 @@ class WatermarkApp {
                 return null;
             }
         }
-        
+
         return current;
     }
 
@@ -3611,12 +3857,12 @@ class WatermarkApp {
     setupResponsiveHandlers() {
         // 初始化響應式佈局
         this.updateResponsiveLayout();
-        
+
         // 監聽視窗大小變化
         window.addEventListener('resize', () => {
             this.debounceResponsiveUpdate();
         });
-        
+
         // 監聽螢幕方向變化
         window.addEventListener('orientationchange', () => {
             // 延遲處理以確保方向變化完成
@@ -3624,7 +3870,7 @@ class WatermarkApp {
                 this.handleOrientationChange();
             }, 100);
         });
-        
+
         console.log('響應式處理器設定完成');
     }
 
@@ -3635,7 +3881,7 @@ class WatermarkApp {
         if (this.responsiveUpdateTimeout) {
             clearTimeout(this.responsiveUpdateTimeout);
         }
-        
+
         this.responsiveUpdateTimeout = setTimeout(() => {
             this.updateResponsiveLayout();
         }, 250);
@@ -3647,10 +3893,10 @@ class WatermarkApp {
     updateResponsiveLayout() {
         const screenWidth = window.innerWidth;
         const body = document.body;
-        
+
         // 移除所有佈局類別
         body.classList.remove('mobile-layout', 'tablet-layout', 'desktop-layout');
-        
+
         // 根據螢幕寬度添加對應的佈局類別
         if (screenWidth < 768) {
             body.classList.add('mobile-layout');
@@ -3662,12 +3908,12 @@ class WatermarkApp {
             body.classList.add('desktop-layout');
             this.setupDesktopLayout();
         }
-        
+
         // 如果有圖片載入，重新調整 Canvas 尺寸
         if (this.imageData && this.canvas) {
             this.resizeCanvasForCurrentLayout();
         }
-        
+
         console.log(`佈局已更新為: ${screenWidth < 768 ? 'mobile' : screenWidth < 992 ? 'tablet' : 'desktop'}`);
     }
 
@@ -3681,13 +3927,13 @@ class WatermarkApp {
             mobileActions.classList.remove('d-none');
             this.setupMobileActionButtons();
         }
-        
+
         // 調整控制面板順序和樣式
         this.optimizeMobileControlPanel();
-        
+
         // 調整預覽區域
         this.optimizeMobilePreview();
-        
+
         console.log('手機版佈局已設定');
     }
 
@@ -3700,7 +3946,7 @@ class WatermarkApp {
         if (mobileActions) {
             mobileActions.classList.add('d-none');
         }
-        
+
         console.log('平板版佈局已設定');
     }
 
@@ -3713,7 +3959,7 @@ class WatermarkApp {
         if (mobileActions) {
             mobileActions.classList.add('d-none');
         }
-        
+
         console.log('桌面版佈局已設定');
     }
 
@@ -3724,19 +3970,19 @@ class WatermarkApp {
         const mobileDownloadBtn = document.getElementById('mobile-download-btn');
         const mobilePngBtn = document.getElementById('mobile-download-png');
         const mobileJpgBtn = document.getElementById('mobile-download-jpg');
-        
+
         if (mobileDownloadBtn) {
             mobileDownloadBtn.addEventListener('click', () => this.downloadImage());
         }
-        
+
         if (mobilePngBtn) {
             mobilePngBtn.addEventListener('click', () => this.downloadImage('png'));
         }
-        
+
         if (mobileJpgBtn) {
             mobileJpgBtn.addEventListener('click', () => this.downloadImage('jpg'));
         }
-        
+
         console.log('手機版操作按鈕已設定');
     }
 
@@ -3746,19 +3992,19 @@ class WatermarkApp {
     optimizeMobileControlPanel() {
         const controlPanel = this.elements.controlPanel;
         if (!controlPanel) return;
-        
+
         // 調整卡片間距
         const cards = controlPanel.querySelectorAll('.card');
         cards.forEach(card => {
             card.style.marginBottom = '1.5rem';
         });
-        
+
         // 優化按鈕組
         const buttonGroups = controlPanel.querySelectorAll('.btn-group');
         buttonGroups.forEach(group => {
             group.classList.add('w-100');
         });
-        
+
         console.log('手機版控制面板已優化');
     }
 
@@ -3768,10 +4014,10 @@ class WatermarkApp {
     optimizeMobilePreview() {
         const previewArea = this.elements.previewArea;
         if (!previewArea) return;
-        
+
         // 調整預覽區域最小高度
         previewArea.style.minHeight = '250px';
-        
+
         console.log('手機版預覽已優化');
     }
 
@@ -3780,11 +4026,11 @@ class WatermarkApp {
      */
     resizeCanvasForCurrentLayout() {
         if (!this.imageData || !this.canvas) return;
-        
+
         const img = this.imageData.image;
         this.setupCanvas(img);
         this.updatePreview();
-        
+
         console.log('Canvas 已為當前佈局調整尺寸');
     }
 
@@ -3794,31 +4040,31 @@ class WatermarkApp {
     handleOrientationChange() {
         const currentOrientation = this.getCurrentOrientation();
         console.log(`螢幕方向已變化為: ${currentOrientation}`);
-        
+
         // 顯示方向變化指示器
         this.showOrientationChangeIndicator();
-        
+
         // 儲存當前方向
         this.currentOrientation = currentOrientation;
-        
+
         // 更新響應式佈局
         this.updateResponsiveLayout();
-        
+
         // 根據方向調整佈局
         this.adjustLayoutForOrientation(currentOrientation);
-        
+
         // 如果有圖片，重新調整顯示
         if (this.imageData && this.canvas) {
             this.resizeCanvasForCurrentLayout();
             this.optimizeCanvasForOrientation(currentOrientation);
         }
-        
+
         // 調整控制面板佈局
         this.adjustControlPanelForOrientation(currentOrientation);
-        
+
         // 確保所有功能在新方向下正常運作
         this.validateFunctionalityAfterOrientationChange();
-        
+
         // 延遲顯示完成提示和隱藏指示器
         setTimeout(() => {
             this.hideOrientationChangeIndicator();
@@ -3832,7 +4078,7 @@ class WatermarkApp {
     showOrientationChangeIndicator() {
         const body = document.body;
         body.classList.add('orientation-changing');
-        
+
         // 創建方向變化提示
         let indicator = document.getElementById('orientation-indicator');
         if (!indicator) {
@@ -3864,7 +4110,7 @@ class WatermarkApp {
             `;
             document.body.appendChild(indicator);
         }
-        
+
         // 顯示指示器
         setTimeout(() => {
             indicator.style.opacity = '1';
@@ -3878,7 +4124,7 @@ class WatermarkApp {
     hideOrientationChangeIndicator() {
         const body = document.body;
         body.classList.remove('orientation-changing');
-        
+
         const indicator = document.getElementById('orientation-indicator');
         if (indicator) {
             indicator.style.opacity = '0';
@@ -3897,7 +4143,7 @@ class WatermarkApp {
     getCurrentOrientation() {
         const width = window.innerWidth;
         const height = window.innerHeight;
-        
+
         if (width > height) {
             return 'landscape'; // 橫向
         } else {
@@ -3910,19 +4156,19 @@ class WatermarkApp {
      */
     adjustLayoutForOrientation(orientation) {
         const body = document.body;
-        
+
         // 移除之前的方向類別
         body.classList.remove('orientation-portrait', 'orientation-landscape');
-        
+
         // 添加當前方向類別
         body.classList.add(`orientation-${orientation}`);
-        
+
         if (orientation === 'landscape') {
             this.setupLandscapeLayout();
         } else {
             this.setupPortraitLayout();
         }
-        
+
         console.log(`佈局已調整為${orientation}模式`);
     }
 
@@ -3931,7 +4177,7 @@ class WatermarkApp {
      */
     setupLandscapeLayout() {
         const screenWidth = window.innerWidth;
-        
+
         if (screenWidth < 768) {
             // 手機橫向模式
             this.setupMobileLandscapeLayout();
@@ -3946,7 +4192,7 @@ class WatermarkApp {
      */
     setupPortraitLayout() {
         const screenWidth = window.innerWidth;
-        
+
         if (screenWidth < 768) {
             // 手機直向模式
             this.setupMobilePortraitLayout();
@@ -3966,13 +4212,13 @@ class WatermarkApp {
             previewArea.style.minHeight = '200px';
             previewArea.style.maxHeight = `${window.innerHeight * 0.6}px`;
         }
-        
+
         // 調整底部操作按鈕
         const mobileActions = document.getElementById('mobile-fixed-actions');
         if (mobileActions) {
             mobileActions.style.padding = '0.75rem 1rem';
         }
-        
+
         console.log('手機橫向佈局已設定');
     }
 
@@ -3986,13 +4232,13 @@ class WatermarkApp {
             previewArea.style.minHeight = '250px';
             previewArea.style.maxHeight = `${window.innerHeight * 0.5}px`;
         }
-        
+
         // 恢復底部操作按鈕
         const mobileActions = document.getElementById('mobile-fixed-actions');
         if (mobileActions) {
             mobileActions.style.padding = '1rem';
         }
-        
+
         console.log('手機直向佈局已設定');
     }
 
@@ -4006,7 +4252,7 @@ class WatermarkApp {
             previewArea.style.minHeight = '350px';
             previewArea.style.maxHeight = `${window.innerHeight * 0.7}px`;
         }
-        
+
         console.log('平板橫向佈局已設定');
     }
 
@@ -4020,7 +4266,7 @@ class WatermarkApp {
             previewArea.style.minHeight = '400px';
             previewArea.style.maxHeight = `${window.innerHeight * 0.6}px`;
         }
-        
+
         console.log('平板直向佈局已設定');
     }
 
@@ -4029,17 +4275,17 @@ class WatermarkApp {
      */
     optimizeCanvasForOrientation(orientation) {
         if (!this.canvas || !this.imageData) return;
-        
+
         // 根據方向調整 Canvas 的最大尺寸
         const containerPadding = 40;
         const containerWidth = this.elements.previewArea.clientWidth - containerPadding;
         const containerHeight = this.elements.previewArea.clientHeight - containerPadding;
-        
+
         const img = this.imageData.image;
         const aspectRatio = img.naturalWidth / img.naturalHeight;
-        
+
         let maxWidth, maxHeight;
-        
+
         if (orientation === 'landscape') {
             // 橫向時優先考慮寬度
             maxWidth = Math.min(containerWidth, window.innerWidth * 0.6);
@@ -4049,9 +4295,9 @@ class WatermarkApp {
             maxWidth = Math.min(containerWidth, window.innerWidth * 0.9);
             maxHeight = Math.min(containerHeight, window.innerHeight * 0.4);
         }
-        
+
         let displayWidth, displayHeight;
-        
+
         if (maxWidth / maxHeight > aspectRatio) {
             displayHeight = maxHeight;
             displayWidth = displayHeight * aspectRatio;
@@ -4059,16 +4305,16 @@ class WatermarkApp {
             displayWidth = maxWidth;
             displayHeight = displayWidth / aspectRatio;
         }
-        
+
         // 更新 Canvas 尺寸
         this.canvas.width = Math.round(displayWidth);
         this.canvas.height = Math.round(displayHeight);
-        
+
         // 更新顯示資訊
         this.imageData.displayWidth = this.canvas.width;
         this.imageData.displayHeight = this.canvas.height;
         this.imageData.scaleFactor = this.canvas.width / img.naturalWidth;
-        
+
         console.log(`Canvas 已為${orientation}方向優化:`, {
             尺寸: `${this.canvas.width}x${this.canvas.height}`,
             縮放比例: this.imageData.scaleFactor.toFixed(3)
@@ -4081,7 +4327,7 @@ class WatermarkApp {
     adjustControlPanelForOrientation(orientation) {
         const controlPanel = this.elements.controlPanel;
         if (!controlPanel) return;
-        
+
         if (orientation === 'landscape' && window.innerWidth < 768) {
             // 手機橫向時壓縮控制面板
             const cards = controlPanel.querySelectorAll('.card');
@@ -4103,7 +4349,7 @@ class WatermarkApp {
                 }
             });
         }
-        
+
         console.log(`控制面板已為${orientation}方向調整`);
     }
 
@@ -4117,9 +4363,9 @@ class WatermarkApp {
             { name: '控制面板', element: this.elements.controlPanel },
             { name: 'Canvas', element: this.canvas }
         ];
-        
+
         const failedChecks = checks.filter(check => !check.element || !check.element.offsetParent);
-        
+
         if (failedChecks.length > 0) {
             console.warn('方向變化後部分功能可能受影響:', failedChecks.map(c => c.name));
             // 嘗試修復
@@ -4146,19 +4392,19 @@ class WatermarkApp {
         const mobileDownloadBtn = document.getElementById('mobile-download-btn');
         const mobilePngBtn = document.getElementById('mobile-download-png');
         const mobileJpgBtn = document.getElementById('mobile-download-jpg');
-        
+
         if (mobileDownloadBtn) {
             mobileDownloadBtn.disabled = false;
         }
-        
+
         if (mobilePngBtn) {
             mobilePngBtn.disabled = false;
         }
-        
+
         if (mobileJpgBtn) {
             mobileJpgBtn.disabled = false;
         }
-        
+
         console.log('手機版下載功能已啟用');
     }
 
@@ -4174,23 +4420,30 @@ class WatermarkApp {
             previewArea: document.getElementById('preview-area'),
             previewCanvas: document.getElementById('preview-canvas'),
             loadingSpinner: document.getElementById('loading-spinner'),
-            
+
             // 控制項
             watermarkTypeRadios: document.querySelectorAll('input[name="watermark-type"]'),
             presetOptions: document.getElementById('preset-options'),
             customOptions: document.getElementById('custom-options'),
             presetSelect: document.getElementById('preset-select'),
             customText: document.getElementById('custom-text'),
-            
+
             // 樣式控制
             opacityRange: document.getElementById('opacity-range'),
             opacityValue: document.getElementById('opacity-value'),
             fontsizeRange: document.getElementById('fontsize-range'),
             fontsizeValue: document.getElementById('fontsize-value'),
-            
-            // 位置控制
-            positionRadios: document.querySelectorAll('input[name="position"]'),
-            
+
+            // 圖片處理控制
+            rotationRadios: document.querySelectorAll('input[name="rotation"]'),
+            cropIdCardBtn: document.getElementById('crop-id-card'),
+            cropSquareBtn: document.getElementById('crop-square'),
+            crop43Btn: document.getElementById('crop-4-3'),
+            crop169Btn: document.getElementById('crop-16-9'),
+            resetCropBtn: document.getElementById('reset-crop'),
+            idCardPresetBtn: document.getElementById('id-card-preset'),
+            cropOverlay: document.getElementById('crop-overlay'),
+
             // 操作按鈕
             downloadBtn: document.getElementById('download-btn'),
             downloadOptionsBtn: document.getElementById('download-options-btn'),
@@ -4204,39 +4457,49 @@ class WatermarkApp {
         // 檔案上傳事件
         this.elements.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         this.elements.uploadSection.addEventListener('click', () => this.elements.fileInput.click());
-        
+
         // 拖放事件
         this.setupDragAndDrop();
-        
+
         // 浮水印類型切換
         this.elements.watermarkTypeRadios.forEach(radio => {
             radio.addEventListener('change', (e) => this.handleWatermarkTypeChange(e));
         });
-        
+
         // 預設類型選擇
         this.elements.presetSelect.addEventListener('change', (e) => this.handlePresetChange(e));
-        
+
         // 自訂文字輸入
         this.elements.customText.addEventListener('input', (e) => this.handleCustomTextChange(e));
-        
+
         // 樣式控制
         this.elements.opacityRange.addEventListener('input', (e) => this.handleOpacityChange(e));
         this.elements.fontsizeRange.addEventListener('input', (e) => this.handleFontsizeChange(e));
-        
-        // 位置控制
-        this.elements.positionRadios.forEach(radio => {
-            radio.addEventListener('change', (e) => this.handlePositionChange(e));
+
+        // 圖片處理控制
+        this.elements.rotationRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => this.handleRotationChange(e));
         });
-        
+
+        // 裁切控制
+        this.elements.cropIdCardBtn.addEventListener('click', () => this.setCropRatio(85.6, 54)); // 身分證比例
+        this.elements.cropSquareBtn.addEventListener('click', () => this.setCropRatio(1, 1));
+        this.elements.crop43Btn.addEventListener('click', () => this.setCropRatio(4, 3));
+        this.elements.crop169Btn.addEventListener('click', () => this.setCropRatio(16, 9));
+        this.elements.resetCropBtn.addEventListener('click', () => this.resetCrop());
+
+        // 身分證預設
+        this.elements.idCardPresetBtn.addEventListener('click', () => this.applyIdCardPreset());
+
         // 下載按鈕和選項
         this.elements.downloadBtn.addEventListener('click', () => this.downloadImage());
         this.setupDownloadOptions();
-        
+
         console.log('事件監聽器設定完成');
-    }  
-  /**
-     * 設定浮水印拖拽功能
-     */
+    }
+    /**
+       * 設定浮水印拖拽功能
+       */
     setupWatermarkDrag() {
         if (!this.canvas) return;
 
@@ -4260,11 +4523,11 @@ class WatermarkApp {
      */
     handleDragStart(e) {
         e.preventDefault();
-        
+
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         // 檢查是否點擊在浮水印區域內
         if (this.isPointInWatermark(x, y)) {
             this.isDragging = true;
@@ -4272,10 +4535,10 @@ class WatermarkApp {
             this.dragStartY = y;
             this.dragOffsetX = x - this.watermarkConfig.x;
             this.dragOffsetY = y - this.watermarkConfig.y;
-            
+
             // 顯示拖拽視覺回饋
             this.showDragVisualFeedback();
-            
+
             console.log('開始拖拽浮水印:', { x, y });
         }
     }
@@ -4289,7 +4552,7 @@ class WatermarkApp {
             const rect = this.canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-            
+
             if (this.isPointInWatermark(x, y)) {
                 this.canvas.style.cursor = 'grab';
             } else {
@@ -4299,24 +4562,24 @@ class WatermarkApp {
         }
 
         e.preventDefault();
-        
+
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         // 計算新位置並應用邊界限制
         const newX = x - this.dragOffsetX;
         const newY = y - this.dragOffsetY;
-        
+
         const constrainedPosition = this.constrainWatermarkPosition(newX, newY);
-        
+
         // 更新浮水印位置
         this.watermarkConfig.x = constrainedPosition.x;
         this.watermarkConfig.y = constrainedPosition.y;
-        
+
         // 更新拖拽視覺回饋
         this.updateDragFeedback(constrainedPosition.x, constrainedPosition.y);
-        
+
         // 更新預覽
         this.updatePreview();
     }
@@ -4327,19 +4590,19 @@ class WatermarkApp {
     handleDragEnd(e) {
         if (this.isDragging) {
             this.isDragging = false;
-            
+
             // 隱藏拖拽視覺回饋
             this.hideDragVisualFeedback();
-            
+
             // 顯示拖拽完成回饋
             this.showDragCompleteFeedback();
-            
+
             // 自動儲存位置設定
             this.syncWatermarkConfigToSettings();
-            
-            console.log('拖拽結束，浮水印位置:', { 
-                x: this.watermarkConfig.x, 
-                y: this.watermarkConfig.y 
+
+            console.log('拖拽結束，浮水印位置:', {
+                x: this.watermarkConfig.x,
+                y: this.watermarkConfig.y
             });
         }
     }
@@ -4349,14 +4612,14 @@ class WatermarkApp {
      */
     handleTouchStart(e) {
         e.preventDefault();
-        
+
         if (e.touches.length !== 1) return;
-        
+
         const touch = e.touches[0];
         const rect = this.canvas.getBoundingClientRect();
         const x = touch.clientX - rect.left;
         const y = touch.clientY - rect.top;
-        
+
         // 檢查是否觸控在浮水印區域內
         if (this.isPointInWatermark(x, y)) {
             this.isDragging = true;
@@ -4364,10 +4627,10 @@ class WatermarkApp {
             this.dragStartY = y;
             this.dragOffsetX = x - this.watermarkConfig.x;
             this.dragOffsetY = y - this.watermarkConfig.y;
-            
+
             // 顯示拖拽視覺回饋（觸控版本）
             this.showDragVisualFeedback();
-            
+
             console.log('開始觸控拖拽浮水印:', { x, y });
         }
     }
@@ -4377,27 +4640,27 @@ class WatermarkApp {
      */
     handleTouchMove(e) {
         if (!this.isDragging || e.touches.length !== 1) return;
-        
+
         e.preventDefault();
-        
+
         const touch = e.touches[0];
         const rect = this.canvas.getBoundingClientRect();
         const x = touch.clientX - rect.left;
         const y = touch.clientY - rect.top;
-        
+
         // 計算新位置並應用邊界限制
         const newX = x - this.dragOffsetX;
         const newY = y - this.dragOffsetY;
-        
+
         const constrainedPosition = this.constrainWatermarkPosition(newX, newY);
-        
+
         // 更新浮水印位置
         this.watermarkConfig.x = constrainedPosition.x;
         this.watermarkConfig.y = constrainedPosition.y;
-        
+
         // 更新拖拽視覺回饋
         this.updateDragFeedback(constrainedPosition.x, constrainedPosition.y);
-        
+
         // 更新預覽
         this.updatePreview();
     }
@@ -4408,19 +4671,19 @@ class WatermarkApp {
     handleTouchEnd(e) {
         if (this.isDragging) {
             this.isDragging = false;
-            
+
             // 隱藏拖拽視覺回饋
             this.hideDragVisualFeedback();
-            
+
             // 顯示拖拽完成回饋
             this.showDragCompleteFeedback();
-            
+
             // 自動儲存位置設定
             this.syncWatermarkConfigToSettings();
-            
-            console.log('觸控拖拽結束，浮水印位置:', { 
-                x: this.watermarkConfig.x, 
-                y: this.watermarkConfig.y 
+
+            console.log('觸控拖拽結束，浮水印位置:', {
+                x: this.watermarkConfig.x,
+                y: this.watermarkConfig.y
             });
         }
     }
@@ -4432,11 +4695,11 @@ class WatermarkApp {
         if (!this.watermarkBounds || this.watermarkBounds.width === 0) {
             return false;
         }
-        
-        return x >= this.watermarkBounds.x && 
-               x <= this.watermarkBounds.x + this.watermarkBounds.width &&
-               y >= this.watermarkBounds.y && 
-               y <= this.watermarkBounds.y + this.watermarkBounds.height;
+
+        return x >= this.watermarkBounds.x &&
+            x <= this.watermarkBounds.x + this.watermarkBounds.width &&
+            y >= this.watermarkBounds.y &&
+            y <= this.watermarkBounds.y + this.watermarkBounds.height;
     }
 
     /**
@@ -4446,21 +4709,21 @@ class WatermarkApp {
         if (!this.canvas || !this.watermarkBounds) {
             return { x, y };
         }
-        
+
         const canvasWidth = this.canvas.width;
         const canvasHeight = this.canvas.height;
         const watermarkWidth = this.watermarkBounds.width;
         const watermarkHeight = this.watermarkBounds.height;
-        
+
         // 邊界限制
         const minX = 0;
         const maxX = canvasWidth - watermarkWidth;
         const minY = 0;
         const maxY = canvasHeight - watermarkHeight;
-        
+
         const constrainedX = Math.max(minX, Math.min(maxX, x));
         const constrainedY = Math.max(minY, Math.min(maxY, y));
-        
+
         return { x: constrainedX, y: constrainedY };
     }
 
@@ -4469,23 +4732,23 @@ class WatermarkApp {
      */
     updateWatermarkBounds(x, y, width, height) {
         this.watermarkBounds = { x, y, width, height };
-    }   
- /**
-     * 顯示拖拽視覺回饋
-     */
+    }
+    /**
+        * 顯示拖拽視覺回饋
+        */
     showDragVisualFeedback() {
         if (!this.canvas) return;
 
         // 添加拖拽樣式類
         this.canvas.classList.add('dragging');
         document.body.classList.add('dragging');
-        
+
         // 更新游標樣式
         this.canvas.style.cursor = 'grabbing';
-        
+
         // 添加拖拽提示
         this.showDragHint();
-        
+
         console.log('拖拽視覺回饋已啟用');
     }
 
@@ -4498,13 +4761,13 @@ class WatermarkApp {
         // 移除拖拽樣式類
         this.canvas.classList.remove('dragging');
         document.body.classList.remove('dragging');
-        
+
         // 恢復游標樣式
         this.canvas.style.cursor = 'crosshair';
-        
+
         // 隱藏拖拽提示
         this.hideDragHint();
-        
+
         console.log('拖拽視覺回饋已停用');
     }
 
@@ -4579,7 +4842,7 @@ class WatermarkApp {
     showDragCompleteFeedback() {
         // 顯示成功提示
         this.showToast('浮水印位置已更新', 'success');
-        
+
         // 添加完成動畫效果
         if (this.canvas) {
             this.canvas.style.transform = 'scale(1.02)';
@@ -4587,7 +4850,7 @@ class WatermarkApp {
                 this.canvas.style.transform = 'scale(1)';
             }, 200);
         }
-        
+
         console.log('拖拽完成回饋已顯示');
     }
 
@@ -4604,7 +4867,7 @@ class WatermarkApp {
             toastContainer.style.zIndex = '9999';
             document.body.appendChild(toastContainer);
         }
-        
+
         // 創建 toast 元素
         const toastId = 'toast-' + Date.now();
         const toast = document.createElement('div');
@@ -4620,9 +4883,9 @@ class WatermarkApp {
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         `;
-        
+
         toastContainer.appendChild(toast);
-        
+
         // 初始化並顯示 toast
         if (typeof bootstrap !== 'undefined') {
             const bsToast = new bootstrap.Toast(toast, {
@@ -4630,7 +4893,7 @@ class WatermarkApp {
                 delay: 3000
             });
             bsToast.show();
-            
+
             // 移除已隱藏的 toast
             toast.addEventListener('hidden.bs.toast', () => {
                 toast.remove();
@@ -4642,31 +4905,31 @@ class WatermarkApp {
                 toast.remove();
             }, 3000);
         }
-    }    
-/**
-     * 設定拖放功能
-     */
+    }
+    /**
+         * 設定拖放功能
+         */
     setupDragAndDrop() {
         const uploadCard = this.elements.uploadSection.querySelector('.card');
-        
+
         // 防止預設拖放行為
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             uploadCard.addEventListener(eventName, this.preventDefaults, false);
             document.body.addEventListener(eventName, this.preventDefaults, false);
         });
-        
+
         // 拖放視覺效果
         ['dragenter', 'dragover'].forEach(eventName => {
             uploadCard.addEventListener(eventName, () => uploadCard.classList.add('drag-over'), false);
         });
-        
+
         ['dragleave', 'drop'].forEach(eventName => {
             uploadCard.addEventListener(eventName, () => uploadCard.classList.remove('drag-over'), false);
         });
-        
+
         // 處理檔案拖放
         uploadCard.addEventListener('drop', (e) => this.handleDrop(e), false);
-        
+
         console.log('拖放功能設定完成');
     }
 
@@ -4705,15 +4968,15 @@ class WatermarkApp {
         try {
             // 重置錯誤狀態
             this.resetErrorState();
-            
+
             // 檔案驗證
             if (!this.validateFile(file)) {
                 return;
             }
-            
+
             // 顯示檔案處理進度
             const progressIndicator = this.showFileProcessingProgress(file.name);
-            
+
             // 顯示載入狀態
             this.showLoading(true, '正在讀取檔案...', {
                 showProgress: true,
@@ -4721,10 +4984,10 @@ class WatermarkApp {
                 showCancel: true,
                 cancelAction: () => this.cancelCurrentOperation()
             });
-            
+
             const reader = new FileReader();
             this.currentFileReader = reader; // 儲存引用以供取消使用
-            
+
             reader.onload = (e) => {
                 try {
                     this.showLoading(true, '正在載入圖片...', {
@@ -4737,7 +5000,7 @@ class WatermarkApp {
                     this.showLoading(false);
                 }
             };
-            
+
             reader.onerror = (error) => {
                 console.error('檔案讀取錯誤:', error);
                 const fileError = new Error('檔案讀取失敗');
@@ -4745,13 +5008,13 @@ class WatermarkApp {
                 this.handleFileError(fileError, file);
                 this.showLoading(false);
             };
-            
+
             reader.onabort = () => {
                 console.warn('檔案讀取被中止');
                 this.showWarningMessage('檔案讀取被中止');
                 this.showLoading(false);
             };
-            
+
             // 設定讀取超時
             const timeout = setTimeout(() => {
                 reader.abort();
@@ -4760,20 +5023,20 @@ class WatermarkApp {
                 this.handleFileError(timeoutError, file);
                 this.showLoading(false);
             }, 30000); // 30秒超時
-            
+
             reader.addEventListener('loadend', () => {
                 clearTimeout(timeout);
             });
-            
+
             // 開始讀取檔案
             reader.readAsDataURL(file);
-            
+
             console.log('開始處理檔案:', {
                 名稱: file.name,
                 大小: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
                 類型: file.type
             });
-            
+
         } catch (error) {
             console.error('檔案處理錯誤:', error);
             this.handleFileError(error, file);
@@ -4795,7 +5058,7 @@ class WatermarkApp {
 
             const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
             const maxSize = 10 * 1024 * 1024; // 10MB
-            
+
             // 檢查檔案類型
             if (!validTypes.includes(file.type)) {
                 const error = new Error('不支援的檔案格式');
@@ -4803,7 +5066,7 @@ class WatermarkApp {
                 this.handleFileError(error, file);
                 return false;
             }
-            
+
             // 檢查檔案大小
             if (file.size > maxSize) {
                 const error = new Error('檔案過大');
@@ -4811,7 +5074,7 @@ class WatermarkApp {
                 this.handleFileError(error, file);
                 return false;
             }
-            
+
             // 檢查檔案是否為空
             if (file.size === 0) {
                 const error = new Error('檔案為空');
@@ -4819,7 +5082,7 @@ class WatermarkApp {
                 this.handleFileError(error, file);
                 return false;
             }
-            
+
             // 檢查檔案名稱
             if (!file.name || file.name.trim() === '') {
                 const error = new Error('檔案名稱無效');
@@ -4827,9 +5090,9 @@ class WatermarkApp {
                 this.handleFileError(error, file);
                 return false;
             }
-            
+
             return true;
-            
+
         } catch (error) {
             console.error('檔案驗證錯誤:', error);
             this.handleFileError(error, file);
@@ -4848,7 +5111,7 @@ class WatermarkApp {
 
             const img = new Image();
             this.currentImageLoad = img; // 儲存引用以供取消使用
-            
+
             // 設定載入超時
             const timeout = setTimeout(() => {
                 const timeoutError = new Error('圖片載入超時');
@@ -4856,16 +5119,16 @@ class WatermarkApp {
                 this.handleImageProcessingError(timeoutError, '圖片載入');
                 this.showLoading(false);
             }, 15000); // 15秒超時
-            
+
             img.onload = () => {
                 try {
                     clearTimeout(timeout);
-                    
+
                     // 驗證圖片尺寸
                     if (img.naturalWidth === 0 || img.naturalHeight === 0) {
                         throw new Error('圖片尺寸無效');
                     }
-                    
+
                     // 檢查圖片尺寸限制
                     const maxDimension = 8000; // 最大尺寸限制
                     if (img.naturalWidth > maxDimension || img.naturalHeight > maxDimension) {
@@ -4873,7 +5136,7 @@ class WatermarkApp {
                         error.name = 'MemoryError';
                         throw error;
                     }
-                    
+
                     // 儲存原始圖片資料
                     this.imageData = {
                         image: img,
@@ -4881,23 +5144,23 @@ class WatermarkApp {
                         originalHeight: img.naturalHeight,
                         aspectRatio: img.naturalWidth / img.naturalHeight
                     };
-                    
+
                     // 設定 Canvas 並計算顯示尺寸
                     this.setupCanvas(img);
-                    
+
                     // 顯示控制面板和預覽
                     this.showControlPanel();
                     this.updatePreview();
-                    
+
                     // 顯示成功訊息
                     this.showSuccessMessage('圖片載入成功');
-                    
+
                     console.log('圖片載入完成:', {
                         原始尺寸: `${this.imageData.originalWidth}x${this.imageData.originalHeight}`,
                         顯示尺寸: `${this.canvas.width}x${this.canvas.height}`,
                         長寬比: this.imageData.aspectRatio.toFixed(2)
                     });
-                    
+
                 } catch (error) {
                     console.error('圖片處理失敗:', error);
                     this.handleImageProcessingError(error, '圖片載入後處理');
@@ -4905,27 +5168,27 @@ class WatermarkApp {
                     this.showLoading(false);
                 }
             };
-            
+
             img.onerror = (error) => {
                 clearTimeout(timeout);
                 console.error('圖片載入錯誤:', error);
-                
+
                 const loadError = new Error('圖片載入失敗');
                 loadError.name = 'ImageLoadError';
                 this.handleImageProcessingError(loadError, '圖片載入');
                 this.showLoading(false);
             };
-            
+
             img.onabort = () => {
                 clearTimeout(timeout);
                 console.warn('圖片載入被中止');
                 this.showWarningMessage('圖片載入被中止');
                 this.showLoading(false);
             };
-            
+
             // 開始載入圖片
             img.src = src;
-            
+
         } catch (error) {
             console.error('載入圖片錯誤:', error);
             this.handleImageProcessingError(error, '圖片載入初始化');
@@ -4940,20 +5203,20 @@ class WatermarkApp {
         try {
             // 取得 Canvas 元素和上下文
             this.canvas = this.elements.previewCanvas;
-            
+
             if (!this.canvas) {
                 throw new Error('找不到預覽 Canvas 元素');
             }
-            
+
             this.context = this.canvas.getContext('2d');
-            
+
             // 檢查 Canvas 支援
             if (!this.context) {
                 const error = new Error('瀏覽器不支援 Canvas');
                 error.name = 'CanvasError';
                 throw error;
             }
-            
+
             // 檢查 Canvas 功能
             try {
                 this.context.createImageData(1, 1);
@@ -4962,62 +5225,62 @@ class WatermarkApp {
                 error.name = 'CanvasError';
                 throw error;
             }
-        
+
             // 計算響應式顯示尺寸
-        const containerPadding = 40;
-        const containerWidth = this.elements.previewArea.clientWidth - containerPadding;
-        
-        // 根據螢幕尺寸調整最大高度
-        const screenWidth = window.innerWidth;
-        let maxHeight;
-        if (screenWidth < 768) {
-            maxHeight = Math.min(300, window.innerHeight * 0.4);
-        } else if (screenWidth < 992) {
-            maxHeight = Math.min(450, window.innerHeight * 0.5);
-        } else {
-            maxHeight = Math.min(600, window.innerHeight * 0.6);
-        }
-        
-        const originalWidth = img.naturalWidth;
-        const originalHeight = img.naturalHeight;
-        const aspectRatio = originalWidth / originalHeight;
-        
-        let displayWidth, displayHeight;
-        
-        // 根據容器大小和圖片長寬比計算最適顯示尺寸
-        if (containerWidth / maxHeight > aspectRatio) {
-            displayHeight = Math.min(maxHeight, originalHeight);
-            displayWidth = displayHeight * aspectRatio;
-        } else {
-            displayWidth = Math.min(containerWidth, originalWidth);
-            displayHeight = displayWidth / aspectRatio;
-        }
-        
-        // 設定 Canvas 尺寸
-        this.canvas.width = Math.round(displayWidth);
-        this.canvas.height = Math.round(displayHeight);
-        
-        // 設定 CSS 樣式確保響應式顯示
-        this.canvas.style.maxWidth = '100%';
-        this.canvas.style.height = 'auto';
-        this.canvas.style.display = 'block';
-        this.canvas.style.margin = '0 auto';
-        
-        // 儲存顯示尺寸資訊
-        this.imageData.displayWidth = this.canvas.width;
-        this.imageData.displayHeight = this.canvas.height;
-        this.imageData.scaleFactor = this.canvas.width / originalWidth;
-        
-        // 設定 Canvas 渲染品質
-        this.context.imageSmoothingEnabled = true;
-        this.context.imageSmoothingQuality = 'high';
-        
+            const containerPadding = 40;
+            const containerWidth = this.elements.previewArea.clientWidth - containerPadding;
+
+            // 根據螢幕尺寸調整最大高度
+            const screenWidth = window.innerWidth;
+            let maxHeight;
+            if (screenWidth < 768) {
+                maxHeight = Math.min(300, window.innerHeight * 0.4);
+            } else if (screenWidth < 992) {
+                maxHeight = Math.min(450, window.innerHeight * 0.5);
+            } else {
+                maxHeight = Math.min(600, window.innerHeight * 0.6);
+            }
+
+            const originalWidth = img.naturalWidth;
+            const originalHeight = img.naturalHeight;
+            const aspectRatio = originalWidth / originalHeight;
+
+            let displayWidth, displayHeight;
+
+            // 根據容器大小和圖片長寬比計算最適顯示尺寸
+            if (containerWidth / maxHeight > aspectRatio) {
+                displayHeight = Math.min(maxHeight, originalHeight);
+                displayWidth = displayHeight * aspectRatio;
+            } else {
+                displayWidth = Math.min(containerWidth, originalWidth);
+                displayHeight = displayWidth / aspectRatio;
+            }
+
+            // 設定 Canvas 尺寸
+            this.canvas.width = Math.round(displayWidth);
+            this.canvas.height = Math.round(displayHeight);
+
+            // 設定 CSS 樣式確保響應式顯示
+            this.canvas.style.maxWidth = '100%';
+            this.canvas.style.height = 'auto';
+            this.canvas.style.display = 'block';
+            this.canvas.style.margin = '0 auto';
+
+            // 儲存顯示尺寸資訊
+            this.imageData.displayWidth = this.canvas.width;
+            this.imageData.displayHeight = this.canvas.height;
+            this.imageData.scaleFactor = this.canvas.width / originalWidth;
+
+            // 設定 Canvas 渲染品質
+            this.context.imageSmoothingEnabled = true;
+            this.context.imageSmoothingQuality = 'high';
+
             console.log('Canvas 設定完成:', {
                 原始尺寸: `${originalWidth}x${originalHeight}`,
                 顯示尺寸: `${this.canvas.width}x${this.canvas.height}`,
                 縮放比例: this.imageData.scaleFactor.toFixed(3)
             });
-            
+
         } catch (error) {
             console.error('Canvas 設定錯誤:', error);
             this.handleCompatibilityError('Canvas', error);
@@ -5031,25 +5294,25 @@ class WatermarkApp {
     showControlPanel() {
         this.elements.controlPanel.classList.remove('d-none');
         this.elements.controlPanel.classList.add('fade-in');
-        
+
         // 隱藏預覽區域的提示文字，顯示 canvas
         this.elements.previewArea.querySelector('.text-center').classList.add('d-none');
         this.elements.previewCanvas.classList.remove('d-none');
-        
+
         // 設定浮水印拖拽功能
         this.setupWatermarkDrag();
-        
+
         console.log('控制面板已顯示');
-    }    
-/**
-     * 更新預覽
-     */
+    }
+    /**
+         * 更新預覽
+         */
     updatePreview() {
         if (!this.imageData || !this.canvas || !this.imageData.image) {
             console.warn('預覽更新條件不滿足，跳過更新');
             return;
         }
-        
+
         // 防抖動處理 - 避免過度渲染
         this.debouncePreviewUpdate();
     }
@@ -5063,14 +5326,14 @@ class WatermarkApp {
         if (this.previewUpdateTimeout) {
             clearTimeout(this.previewUpdateTimeout);
         }
-        
+
         // 根據操作類型設定不同的延遲時間
         const delay = this.isDragging ? 16 : 150; // 拖拽時使用更短延遲以保持流暢性
-        
+
         this.previewUpdateTimeout = setTimeout(() => {
             this.performPreviewUpdate();
         }, delay);
-        
+
         console.log(`預覽更新已排程，延遲: ${delay}ms`);
     }
 
@@ -5081,26 +5344,26 @@ class WatermarkApp {
         if (!this.validatePreviewConditions()) {
             return;
         }
-        
+
         const startTime = performance.now();
-        
+
         try {
             // 使用高效的 Canvas 重繪策略
             this.efficientCanvasRedraw();
-            
+
             // 啟用下載功能
             this.enableDownloadFeatures();
-            
+
             // 記錄效能指標
             const endTime = performance.now();
             const renderTime = endTime - startTime;
-            
+
             if (renderTime > 50) {
                 console.warn(`預覽渲染時間較長: ${renderTime.toFixed(2)}ms`);
             } else {
                 console.log(`預覽更新完成，耗時: ${renderTime.toFixed(2)}ms`);
             }
-            
+
         } catch (error) {
             console.error('預覽更新失敗:', error);
             this.showError('預覽更新失敗，請重試');
@@ -5115,12 +5378,12 @@ class WatermarkApp {
             console.warn('預覽更新條件不滿足');
             return false;
         }
-        
+
         if (!this.context) {
             console.error('Canvas 上下文不可用');
             return false;
         }
-        
+
         return true;
     }
 
@@ -5130,20 +5393,20 @@ class WatermarkApp {
      */
     efficientCanvasRedraw() {
         const ctx = this.context;
-        
+
         // 儲存當前 Canvas 狀態
         ctx.save();
-        
+
         try {
             // 使用高效能的清除方法
             this.clearCanvasEfficiently();
-            
+
             // 優化的圖片繪製
             this.drawImageOptimized();
-            
+
             // 優化的浮水印繪製
             this.drawWatermarkOptimized();
-            
+
         } finally {
             // 恢復 Canvas 狀態
             ctx.restore();
@@ -5155,10 +5418,10 @@ class WatermarkApp {
      */
     clearCanvasEfficiently() {
         const ctx = this.context;
-        
+
         // 使用 clearRect 而非 fillRect 以獲得更好的效能
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
+
         // 重置合成操作以確保正確的渲染
         ctx.globalCompositeOperation = 'source-over';
     }
@@ -5169,11 +5432,11 @@ class WatermarkApp {
     drawImageOptimized() {
         const ctx = this.context;
         const img = this.imageData.image;
-        
+
         // 設定圖片渲染品質
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        
+
         // 繪製原始圖片到 Canvas
         ctx.drawImage(
             img,
@@ -5187,32 +5450,32 @@ class WatermarkApp {
      */
     drawWatermarkOptimized() {
         const text = this.watermarkConfig.text?.trim();
-        
+
         // 如果沒有文字，不繪製浮水印
         if (!text) {
             console.log('浮水印文字為空，跳過繪製');
             this.updateWatermarkBounds(0, 0, 0, 0);
             return;
         }
-        
+
         const ctx = this.context;
-        
+
         try {
             // 儲存 Canvas 狀態
             ctx.save();
-            
+
             // 批量設定所有樣式屬性以減少狀態變更
             this.applyWatermarkStyles(ctx);
-            
+
             // 計算文字尺寸和位置
             const textMetrics = this.calculateTextMetrics(ctx, text);
             const position = this.calculateOptimalPosition(textMetrics);
-            
+
             // 檢查位置有效性
             if (this.isPositionValid(position)) {
                 // 繪製浮水印文字
                 this.renderWatermarkText(ctx, text, position);
-                
+
                 // 更新浮水印邊界資訊
                 this.updateWatermarkBounds(
                     position.x - textMetrics.width / 2,
@@ -5220,7 +5483,7 @@ class WatermarkApp {
                     textMetrics.width,
                     textMetrics.height
                 );
-                
+
                 console.log('浮水印已優化繪製:', {
                     文字: text,
                     位置: position,
@@ -5230,7 +5493,7 @@ class WatermarkApp {
                 console.warn('浮水印位置無效，跳過繪製:', position);
                 this.updateWatermarkBounds(0, 0, 0, 0);
             }
-            
+
         } catch (error) {
             console.error('浮水印繪製失敗:', error);
             this.updateWatermarkBounds(0, 0, 0, 0);
@@ -5245,14 +5508,14 @@ class WatermarkApp {
      */
     applyWatermarkStyles(ctx) {
         const fontFamily = 'Arial, "Microsoft JhengHei", "PingFang TC", "Helvetica Neue", sans-serif';
-        
+
         // 批量設定所有樣式屬性
         ctx.font = `${this.watermarkConfig.fontSize}px ${fontFamily}`;
         ctx.fillStyle = this.watermarkConfig.color;
         ctx.globalAlpha = this.watermarkConfig.opacity;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
+
         // 設定陰影效果
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
         ctx.shadowBlur = 2;
@@ -5278,21 +5541,21 @@ class WatermarkApp {
      */
     calculateOptimalPosition(textMetrics) {
         // 如果有自訂拖拽位置，優先使用
-        if (this.watermarkConfig.x !== undefined && this.watermarkConfig.y !== undefined && 
+        if (this.watermarkConfig.x !== undefined && this.watermarkConfig.y !== undefined &&
             (this.watermarkConfig.x !== 0 || this.watermarkConfig.y !== 0)) {
-            return { 
-                x: this.watermarkConfig.x + textMetrics.width / 2, 
-                y: this.watermarkConfig.y + textMetrics.height / 2 
+            return {
+                x: this.watermarkConfig.x + textMetrics.width / 2,
+                y: this.watermarkConfig.y + textMetrics.height / 2
             };
         }
-        
+
         // 使用預設位置計算
         const position = this.calculateWatermarkPositionOptimized(textMetrics);
-        
+
         // 更新配置中的位置（用於拖拽）
         this.watermarkConfig.x = position.x - textMetrics.width / 2;
         this.watermarkConfig.y = position.y - textMetrics.height / 2;
-        
+
         return position;
     }
 
@@ -5312,7 +5575,7 @@ class WatermarkApp {
         const textHeight = textMetrics.height;
         const padding = 20;
         let x, y;
-        
+
         switch (this.watermarkConfig.position) {
             case 'top-left':
                 x = padding + textWidth / 2;
@@ -5352,7 +5615,7 @@ class WatermarkApp {
                 y = this.canvas.height - padding - textHeight / 2;
                 break;
         }
-        
+
         return { x, y };
     }
 
@@ -5361,20 +5624,20 @@ class WatermarkApp {
      */
     drawWatermark() {
         const text = this.watermarkConfig.text?.trim();
-        
+
         // 如果沒有文字，不繪製浮水印
         if (!text) {
             console.log('浮水印文字為空，跳過繪製');
             this.updateWatermarkBounds(0, 0, 0, 0);
             return;
         }
-        
+
         const ctx = this.context;
-        
+
         try {
             // 儲存 Canvas 狀態
             ctx.save();
-            
+
             // 設定字體樣式
             const fontFamily = 'Arial, "Microsoft JhengHei", "PingFang TC", "Helvetica Neue", sans-serif';
             ctx.font = `${this.watermarkConfig.fontSize}px ${fontFamily}`;
@@ -5382,20 +5645,20 @@ class WatermarkApp {
             ctx.globalAlpha = this.watermarkConfig.opacity;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
+
             // 計算文字尺寸
             const textMetrics = ctx.measureText(text);
             const textWidth = textMetrics.width;
             const textHeight = this.watermarkConfig.fontSize;
-            
+
             // 計算位置
             let position;
-            if (this.watermarkConfig.x !== undefined && this.watermarkConfig.y !== undefined && 
+            if (this.watermarkConfig.x !== undefined && this.watermarkConfig.y !== undefined &&
                 (this.watermarkConfig.x !== 0 || this.watermarkConfig.y !== 0)) {
                 // 使用拖拽設定的自訂位置
-                position = { 
-                    x: this.watermarkConfig.x + textWidth / 2, 
-                    y: this.watermarkConfig.y + textHeight / 2 
+                position = {
+                    x: this.watermarkConfig.x + textWidth / 2,
+                    y: this.watermarkConfig.y + textHeight / 2
                 };
             } else {
                 // 使用預設位置計算
@@ -5404,7 +5667,7 @@ class WatermarkApp {
                 this.watermarkConfig.x = position.x - textWidth / 2;
                 this.watermarkConfig.y = position.y - textHeight / 2;
             }
-            
+
             // 檢查位置是否在 Canvas 範圍內
             if (this.isPositionValid(position)) {
                 // 添加文字陰影效果
@@ -5412,15 +5675,15 @@ class WatermarkApp {
                 ctx.shadowBlur = 2;
                 ctx.shadowOffsetX = 1;
                 ctx.shadowOffsetY = 1;
-                
+
                 // 繪製文字
                 ctx.fillText(text, position.x, position.y);
-                
+
                 // 更新浮水印邊界資訊（用於拖拽檢測）
                 const boundingX = position.x - textWidth / 2;
                 const boundingY = position.y - textHeight / 2;
                 this.updateWatermarkBounds(boundingX, boundingY, textWidth, textHeight);
-                
+
                 console.log('浮水印已繪製:', {
                     文字: text,
                     位置: position,
@@ -5430,7 +5693,7 @@ class WatermarkApp {
                 console.warn('浮水印位置超出 Canvas 範圍:', position);
                 this.updateWatermarkBounds(0, 0, 0, 0);
             }
-            
+
         } catch (error) {
             console.error('浮水印繪製失敗:', error);
             this.updateWatermarkBounds(0, 0, 0, 0);
@@ -5444,10 +5707,10 @@ class WatermarkApp {
      * 檢查位置是否有效
      */
     isPositionValid(position) {
-        return position.x >= 0 && 
-               position.x <= this.canvas.width && 
-               position.y >= 0 && 
-               position.y <= this.canvas.height;
+        return position.x >= 0 &&
+            position.x <= this.canvas.width &&
+            position.y >= 0 &&
+            position.y <= this.canvas.height;
     }
 
     /**
@@ -5458,10 +5721,10 @@ class WatermarkApp {
         const textMetrics = ctx.measureText(text);
         const textWidth = textMetrics.width;
         const textHeight = this.watermarkConfig.fontSize;
-        
+
         const padding = 20;
         let x, y;
-        
+
         switch (this.watermarkConfig.position) {
             case 'top-left':
                 x = padding + textWidth / 2;
@@ -5501,7 +5764,7 @@ class WatermarkApp {
                 y = this.canvas.height - padding - textHeight / 2;
                 break;
         }
-        
+
         return { x, y };
     }    /**
 
@@ -5510,7 +5773,7 @@ class WatermarkApp {
     handleWatermarkTypeChange(e) {
         const type = e.target.value;
         this.updateWatermarkConfig('type', type);
-        
+
         if (type === 'preset') {
             this.elements.presetOptions.classList.remove('d-none');
             this.elements.customOptions.classList.add('d-none');
@@ -5520,7 +5783,7 @@ class WatermarkApp {
             this.elements.customOptions.classList.remove('d-none');
             this.updateWatermarkConfig('text', this.elements.customText.value);
         }
-        
+
         this.updatePreview();
         console.log('浮水印類型已變更:', type);
     }
@@ -5619,22 +5882,22 @@ class WatermarkApp {
             if (!this.validateDownloadConditions()) {
                 return;
             }
-            
+
             // 顯示下載狀態
             this.showDownloadProgress(true, format);
-            
+
             // 生成高品質圖片
             const imageData = this.generateHighQualityImage(format);
-            
+
             // 生成檔名
             const filename = this.generateDownloadFilename(format);
-            
+
             // 執行下載
             this.performDownload(imageData, filename);
-            
+
             // 顯示成功回饋
             this.showDownloadSuccess(filename);
-            
+
         } catch (error) {
             console.error('下載失敗:', error);
             this.handleDownloadError(error, format);
@@ -5654,21 +5917,21 @@ class WatermarkApp {
                 this.handleDownloadError(error);
                 return false;
             }
-            
+
             if (!this.imageData || !this.imageData.image) {
                 const error = new Error('圖片資料不完整，請重新上傳圖片');
                 error.name = 'FileGenerationError';
                 this.handleDownloadError(error);
                 return false;
             }
-            
+
             if (!this.context) {
                 const error = new Error('Canvas 上下文無效');
                 error.name = 'CanvasError';
                 this.handleDownloadError(error);
                 return false;
             }
-            
+
             // 檢查瀏覽器下載支援
             if (!this.checkDownloadSupport()) {
                 const error = new Error('瀏覽器不支援直接下載');
@@ -5676,9 +5939,9 @@ class WatermarkApp {
                 this.handleDownloadError(error);
                 return false;
             }
-            
+
             return true;
-            
+
         } catch (error) {
             console.error('下載條件驗證錯誤:', error);
             this.handleDownloadError(error);
@@ -5695,20 +5958,20 @@ class WatermarkApp {
             if (!this.canvas.toBlob) {
                 return false;
             }
-            
+
             // 檢查 URL.createObjectURL 支援
             if (!window.URL || !window.URL.createObjectURL) {
                 return false;
             }
-            
+
             // 檢查 document.createElement('a').download 支援
             const testLink = document.createElement('a');
             if (typeof testLink.download === 'undefined') {
                 return false;
             }
-            
+
             return true;
-            
+
         } catch (error) {
             console.warn('下載支援檢查失敗:', error);
             return false;
@@ -5722,15 +5985,15 @@ class WatermarkApp {
         // 創建高解析度 Canvas 用於匯出
         const exportCanvas = document.createElement('canvas');
         const exportContext = exportCanvas.getContext('2d');
-        
+
         // 使用原始圖片尺寸以保持最佳品質
         exportCanvas.width = this.imageData.originalWidth;
         exportCanvas.height = this.imageData.originalHeight;
-        
+
         // 設定高品質渲染
         exportContext.imageSmoothingEnabled = true;
         exportContext.imageSmoothingQuality = 'high';
-        
+
         // 繪製原始圖片
         exportContext.drawImage(
             this.imageData.image,
@@ -5738,21 +6001,21 @@ class WatermarkApp {
             this.imageData.originalWidth,
             this.imageData.originalHeight
         );
-        
+
         // 繪製浮水印（按原始尺寸比例調整）
         this.drawWatermarkForExport(exportContext, exportCanvas);
-        
+
         // 根據原始格式決定匯出格式和品質
         const originalFormat = this.detectOriginalImageFormat();
         const exportFormat = this.getOptimalExportFormat(originalFormat);
         const quality = this.getExportQuality(exportFormat);
-        
+
         console.log('高品質圖片生成完成:', {
             尺寸: `${exportCanvas.width}x${exportCanvas.height}`,
             格式: exportFormat,
             品質: quality
         });
-        
+
         return {
             dataUrl: exportCanvas.toDataURL(exportFormat, quality),
             format: exportFormat,
@@ -5767,44 +6030,44 @@ class WatermarkApp {
     drawWatermarkForExport(context, canvas) {
         const text = this.watermarkConfig.text?.trim();
         if (!text) return;
-        
+
         // 儲存上下文狀態
         context.save();
-        
+
         try {
             // 計算原始尺寸的縮放比例
             const scaleFactor = canvas.width / this.canvas.width;
-            
+
             // 調整字體大小以適應原始尺寸
             const exportFontSize = Math.round(this.watermarkConfig.fontSize * scaleFactor);
             const fontFamily = 'Arial, "Microsoft JhengHei", "PingFang TC", "Helvetica Neue", sans-serif';
-            
+
             // 設定浮水印樣式
             context.font = `${exportFontSize}px ${fontFamily}`;
             context.fillStyle = this.watermarkConfig.color;
             context.globalAlpha = this.watermarkConfig.opacity;
             context.textAlign = 'center';
             context.textBaseline = 'middle';
-            
+
             // 設定陰影效果
             context.shadowColor = 'rgba(0, 0, 0, 0.3)';
             context.shadowBlur = Math.round(2 * scaleFactor);
             context.shadowOffsetX = Math.round(1 * scaleFactor);
             context.shadowOffsetY = Math.round(1 * scaleFactor);
-            
+
             // 計算浮水印位置（按原始尺寸調整）
             const position = this.calculateExportWatermarkPosition(context, text, canvas, scaleFactor);
-            
+
             // 繪製浮水印文字
             context.fillText(text, position.x, position.y);
-            
+
             console.log('匯出浮水印已繪製:', {
                 文字: text,
                 位置: position,
                 字體大小: exportFontSize,
                 縮放比例: scaleFactor.toFixed(3)
             });
-            
+
         } finally {
             context.restore();
         }
@@ -5817,12 +6080,12 @@ class WatermarkApp {
         const textMetrics = context.measureText(text);
         const textWidth = textMetrics.width;
         const textHeight = this.watermarkConfig.fontSize * scaleFactor;
-        
+
         // 邊距（按比例調整）
         const margin = Math.round(20 * scaleFactor);
-        
+
         let x, y;
-        
+
         // 如果有自訂位置（拖拽設定），使用自訂位置
         if (this.watermarkConfig.x !== 0 || this.watermarkConfig.y !== 0) {
             x = Math.round(this.watermarkConfig.x * scaleFactor);
@@ -5869,11 +6132,11 @@ class WatermarkApp {
                     break;
             }
         }
-        
+
         // 確保位置在畫布範圍內
         x = Math.max(textWidth / 2, Math.min(canvas.width - textWidth / 2, x));
         y = Math.max(textHeight / 2, Math.min(canvas.height - textHeight / 2, y));
-        
+
         return { x, y };
     }
 
@@ -5884,9 +6147,9 @@ class WatermarkApp {
         if (!this.imageData || !this.imageData.image || !this.imageData.image.src) {
             return 'image/png';
         }
-        
+
         const src = this.imageData.image.src;
-        
+
         if (src.includes('data:image/jpeg') || src.includes('data:image/jpg')) {
             return 'image/jpeg';
         } else if (src.includes('data:image/png')) {
@@ -5896,7 +6159,7 @@ class WatermarkApp {
         } else if (src.includes('data:image/webp')) {
             return 'image/png'; // WebP 轉為 PNG 以確保相容性
         }
-        
+
         return 'image/png'; // 預設格式
     }
 
@@ -5908,7 +6171,7 @@ class WatermarkApp {
         if (originalFormat === 'image/jpeg' && this.watermarkConfig.opacity >= 0.9) {
             return 'image/jpeg';
         }
-        
+
         // 其他情況使用 PNG 以保持最佳品質
         return 'image/png';
     }
@@ -5929,10 +6192,10 @@ class WatermarkApp {
     generateDownloadFilename() {
         const now = new Date();
         const timestamp = now.toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
-        
+
         // 根據浮水印類型生成描述性檔名
         let prefix = 'watermarked';
-        
+
         if (this.watermarkConfig.type === 'preset') {
             const presetNames = {
                 'taiwan-id': 'id_verified',
@@ -5947,9 +6210,9 @@ class WatermarkApp {
                 .substring(0, 20);
             prefix = `custom_${cleanText}`;
         }
-        
+
         const extension = this.detectOriginalImageFormat() === 'image/jpeg' ? 'jpg' : 'png';
-        
+
         return `${prefix}_${timestamp}.${extension}`;
     }
 
@@ -5964,7 +6227,7 @@ class WatermarkApp {
             // 降級到傳統下載方法
             this.downloadWithLegacyMethod(imageData, filename);
         }
-        
+
         console.log('下載操作完成:', {
             檔名: filename,
             尺寸: `${imageData.width}x${imageData.height}`,
@@ -5976,8 +6239,8 @@ class WatermarkApp {
      * 檢查是否可使用現代下載 API
      */
     canUseModernDownload() {
-        return typeof window.showSaveFilePicker === 'function' && 
-               window.isSecureContext;
+        return typeof window.showSaveFilePicker === 'function' &&
+            window.isSecureContext;
     }
 
     /**
@@ -5988,7 +6251,7 @@ class WatermarkApp {
             // 將 data URL 轉換為 Blob
             const response = await fetch(imageData.dataUrl);
             const blob = await response.blob();
-            
+
             // 使用 File System Access API
             const fileHandle = await window.showSaveFilePicker({
                 suggestedName: filename,
@@ -6000,11 +6263,11 @@ class WatermarkApp {
                     }
                 }]
             });
-            
+
             const writable = await fileHandle.createWritable();
             await writable.write(blob);
             await writable.close();
-            
+
             console.log('使用現代 API 下載完成');
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -6022,18 +6285,18 @@ class WatermarkApp {
         link.download = filename;
         link.href = imageData.dataUrl;
         link.style.display = 'none';
-        
+
         // 添加到 DOM，觸發下載，然後移除
         document.body.appendChild(link);
         link.click();
-        
+
         // 延遲移除以確保下載開始
         setTimeout(() => {
             if (link.parentNode) {
                 document.body.removeChild(link);
             }
         }, 100);
-        
+
         console.log('使用傳統方法下載完成');
     }
 
@@ -6046,13 +6309,13 @@ class WatermarkApp {
             'jpg': 'JPG (較小檔案)',
             'jpeg': 'JPEG (較小檔案)'
         };
-        
+
         const formatName = formatNames[format] || format.toUpperCase();
-        
+
         if (show) {
             // 顯示詳細的下載進度
             this.showDownloadProgressSteps(formatName);
-            
+
             // 同時顯示全域載入提示
             this.showLoading(true, `正在生成 ${formatName} 圖片...`, {
                 showProgress: true,
@@ -6061,10 +6324,10 @@ class WatermarkApp {
                 cancelAction: () => this.cancelDownload(),
                 type: 'success'
             });
-            
+
             // 模擬下載進度
             this.simulateDownloadProgress();
-            
+
         } else {
             this.hideDownloadProgressSteps();
             this.showLoading(false);
@@ -6077,13 +6340,13 @@ class WatermarkApp {
     showDownloadProgressSteps(formatName) {
         const statusElement = this.elements.downloadStatus;
         const statusText = this.elements.downloadStatusText;
-        
+
         if (statusElement && statusText) {
             statusText.textContent = `正在生成 ${formatName} 圖片`;
             statusElement.classList.remove('d-none');
             statusElement.classList.add('fade-in');
         }
-        
+
         // 停用下載按鈕並顯示載入狀態
         this.setDownloadButtonState('loading');
     }
@@ -6093,12 +6356,12 @@ class WatermarkApp {
      */
     hideDownloadProgressSteps() {
         const statusElement = this.elements.downloadStatus;
-        
+
         if (statusElement) {
             statusElement.classList.add('d-none');
             statusElement.classList.remove('fade-in');
         }
-        
+
         // 恢復下載按鈕狀態
         this.setDownloadButtonState('ready');
     }
@@ -6114,30 +6377,30 @@ class WatermarkApp {
             { progress: 80, message: '正在生成檔案...' },
             { progress: 100, message: '準備下載...' }
         ];
-        
+
         let currentStep = 0;
-        
+
         const updateStep = () => {
             if (currentStep < steps.length) {
                 const step = steps[currentStep];
-                
+
                 // 更新全域載入進度
                 this.updateLoadingProgress(step.progress, 100);
-                
+
                 // 更新下載狀態文字
                 const statusText = this.elements.downloadStatusText;
                 if (statusText) {
                     statusText.textContent = step.message;
                 }
-                
+
                 currentStep++;
-                
+
                 // 設定下一步的延遲
                 const delay = currentStep === steps.length ? 500 : 800 + Math.random() * 400;
                 setTimeout(updateStep, delay);
             }
         };
-        
+
         // 開始進度更新
         setTimeout(updateStep, 300);
     }
@@ -6148,12 +6411,12 @@ class WatermarkApp {
     setDownloadButtonState(state) {
         const downloadBtn = this.elements.downloadBtn;
         const downloadOptionsBtn = this.elements.downloadOptionsBtn;
-        
+
         if (!downloadBtn) return;
-        
+
         // 清除所有狀態類別
         downloadBtn.classList.remove('btn-loading', 'btn-success-flash', 'btn-error-flash');
-        
+
         switch (state) {
             case 'loading':
                 downloadBtn.disabled = true;
@@ -6168,7 +6431,7 @@ class WatermarkApp {
                     downloadOptionsBtn.disabled = true;
                 }
                 break;
-                
+
             case 'success':
                 downloadBtn.classList.add('btn-success-flash');
                 downloadBtn.innerHTML = `
@@ -6179,7 +6442,7 @@ class WatermarkApp {
                     this.setDownloadButtonState('ready');
                 }, 2000);
                 break;
-                
+
             case 'error':
                 downloadBtn.classList.add('btn-error-flash');
                 downloadBtn.innerHTML = `
@@ -6190,7 +6453,7 @@ class WatermarkApp {
                     this.setDownloadButtonState('ready');
                 }, 2000);
                 break;
-                
+
             case 'ready':
             default:
                 downloadBtn.disabled = false;
@@ -6210,17 +6473,17 @@ class WatermarkApp {
      */
     cancelDownload() {
         console.log('使用者取消了下載操作');
-        
+
         // 停止任何進行中的下載處理
         if (this.downloadTimeout) {
             clearTimeout(this.downloadTimeout);
             this.downloadTimeout = null;
         }
-        
+
         // 重置下載狀態
         this.hideDownloadProgressSteps();
         this.setDownloadButtonState('ready');
-        
+
         // 顯示取消訊息
         this.showInfoMessage('下載已取消');
     }
@@ -6232,34 +6495,34 @@ class WatermarkApp {
         // 顯示成功狀態
         const successElement = this.elements.downloadSuccess;
         const successText = this.elements.downloadSuccessText;
-        
+
         if (successElement && successText) {
-            const message = filename ? 
-                `圖片 "${filename}" 已成功儲存到您的裝置` : 
+            const message = filename ?
+                `圖片 "${filename}" 已成功儲存到您的裝置` :
                 '圖片已成功儲存到您的裝置';
-                
+
             successText.textContent = message;
             successElement.classList.remove('d-none');
             successElement.classList.add('fade-in');
-            
+
             // 自動隱藏成功訊息
             setTimeout(() => {
                 successElement.classList.add('d-none');
                 successElement.classList.remove('fade-in');
             }, 4000);
         }
-        
+
         // 設定按鈕成功狀態
         this.setDownloadButtonState('success');
-        
+
         // 顯示成功 Toast
-        this.showSuccessToast('下載完成', filename ? 
-            `檔案 "${filename}" 已儲存` : 
+        this.showSuccessToast('下載完成', filename ?
+            `檔案 "${filename}" 已儲存` :
             '圖片已成功下載');
-        
+
         // 啟用手機版下載功能
         this.enableMobileDownloadFeatures();
-        
+
         console.log('下載成功回饋已顯示:', filename);
     }
 
@@ -6268,7 +6531,7 @@ class WatermarkApp {
      */
     showOperationProgress(operation, steps = []) {
         const progressContainer = this.getProgressContainer();
-        
+
         const progressHtml = `
             <div class="operation-progress card shadow-sm border-0" id="operation-progress-${Date.now()}">
                 <div class="card-body p-3">
@@ -6291,15 +6554,15 @@ class WatermarkApp {
                 </div>
             </div>
         `;
-        
+
         progressContainer.insertAdjacentHTML('beforeend', progressHtml);
         const progressElement = progressContainer.lastElementChild;
-        
+
         // 執行步驟
         if (steps.length > 0) {
             this.executeProgressSteps(progressElement, steps);
         }
-        
+
         return progressElement;
     }
 
@@ -6310,19 +6573,19 @@ class WatermarkApp {
         let currentStep = 0;
         const progressBar = progressElement.querySelector('.progress-bar');
         const stepText = progressElement.querySelector('.operation-step');
-        
+
         const executeStep = () => {
             if (currentStep < steps.length) {
                 const step = steps[currentStep];
                 const progress = ((currentStep + 1) / steps.length) * 100;
-                
+
                 // 更新進度條
                 progressBar.style.width = `${progress}%`;
                 progressBar.setAttribute('aria-valuenow', progress);
-                
+
                 // 更新步驟文字
                 stepText.textContent = step.message || `步驟 ${currentStep + 1}`;
-                
+
                 // 執行步驟動作
                 if (step.action && typeof step.action === 'function') {
                     try {
@@ -6331,19 +6594,19 @@ class WatermarkApp {
                         console.error('步驟執行錯誤:', error);
                     }
                 }
-                
+
                 currentStep++;
-                
+
                 // 設定下一步延遲
                 const delay = step.delay || 800;
                 setTimeout(executeStep, delay);
-                
+
             } else {
                 // 完成所有步驟
                 this.completeOperationProgress(progressElement);
             }
         };
-        
+
         // 開始執行步驟
         setTimeout(executeStep, 300);
     }
@@ -6355,18 +6618,18 @@ class WatermarkApp {
         const spinner = progressElement.querySelector('.spinner-border');
         const progressBar = progressElement.querySelector('.progress-bar');
         const stepText = progressElement.querySelector('.operation-step');
-        
+
         // 更新為完成狀態
         spinner.classList.remove('spinner-border');
         spinner.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
-        
+
         progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
         progressBar.classList.add('bg-success');
         progressBar.style.width = '100%';
-        
+
         stepText.textContent = '完成';
         stepText.classList.add('text-success');
-        
+
         // 自動移除
         setTimeout(() => {
             progressElement.classList.add('fade-out');
@@ -6404,7 +6667,7 @@ class WatermarkApp {
             { message: '初始化預覽...', delay: 600 },
             { message: '準備編輯工具...', delay: 400 }
         ];
-        
+
         return this.showOperationProgress(`處理檔案: ${filename}`, steps);
     }
 
@@ -6418,7 +6681,7 @@ class WatermarkApp {
             { message: '設定 Canvas...', delay: 500 },
             { message: '渲染預覽...', delay: 700 }
         ];
-        
+
         return this.showOperationProgress('載入圖片', steps);
     }
 
@@ -6432,7 +6695,7 @@ class WatermarkApp {
             { message: '應用透明度效果...', delay: 400 },
             { message: '更新預覽...', delay: 300 }
         ];
-        
+
         return this.showOperationProgress('應用浮水印', steps);
     }
 
@@ -6441,7 +6704,7 @@ class WatermarkApp {
      */
     showSystemStatus(status, message, type = 'info') {
         const statusContainer = this.getSystemStatusContainer();
-        
+
         const statusHtml = `
             <div class="system-status alert alert-${type} alert-dismissible fade show" role="alert">
                 <div class="d-flex align-items-center">
@@ -6454,9 +6717,9 @@ class WatermarkApp {
                 </div>
             </div>
         `;
-        
+
         statusContainer.insertAdjacentHTML('beforeend', statusHtml);
-        
+
         // 自動清理
         const statusElement = statusContainer.lastElementChild;
         setTimeout(() => {
@@ -6526,7 +6789,7 @@ class WatermarkApp {
         const toast = new bootstrap.Toast(toastElement, {
             delay: duration
         });
-        
+
         toast.show();
 
         // 自動清理
@@ -6542,7 +6805,7 @@ class WatermarkApp {
      */
     showDownloadError(error) {
         let errorMessage = '下載失敗，請重試';
-        
+
         // 根據錯誤類型提供具體訊息
         if (error.name === 'SecurityError') {
             errorMessage = '安全限制導致下載失敗，請檢查瀏覽器設定';
@@ -6551,18 +6814,18 @@ class WatermarkApp {
         } else if (error.message && error.message.includes('canvas')) {
             errorMessage = '圖片處理失敗，請重新上傳圖片';
         }
-        
+
         // 顯示錯誤訊息
         this.showError(errorMessage);
-        
+
         // 按鈕錯誤動畫
         const downloadBtn = this.elements.downloadBtn;
         downloadBtn.classList.add('btn-error-flash');
-        
+
         setTimeout(() => {
             downloadBtn.classList.remove('btn-error-flash');
         }, 1000);
-        
+
         console.error('下載錯誤回饋已顯示:', error);
     }
 
@@ -6575,25 +6838,25 @@ class WatermarkApp {
             e.preventDefault();
             this.downloadImageWithFormat('png');
         });
-        
+
         // JPG 下載選項
         document.getElementById('download-jpg').addEventListener('click', (e) => {
             e.preventDefault();
             this.downloadImageWithFormat('jpg');
         });
-        
+
         // 原始尺寸下載
         document.getElementById('download-original-size').addEventListener('click', (e) => {
             e.preventDefault();
             this.downloadImageWithSize('original');
         });
-        
+
         // 預覽尺寸下載
         document.getElementById('download-preview-size').addEventListener('click', (e) => {
             e.preventDefault();
             this.downloadImageWithSize('preview');
         });
-        
+
         console.log('下載選項功能已設定');
     }
 
@@ -6604,23 +6867,23 @@ class WatermarkApp {
         if (!this.validateDownloadConditions()) {
             return;
         }
-        
+
         // 顯示下載狀態
         this.showEnhancedDownloadProgress(true, `正在生成 ${format.toUpperCase()} 格式圖片...`);
-        
+
         try {
             // 生成指定格式的圖片
             const imageData = this.generateImageWithFormat(format);
-            
+
             // 生成檔名
             const filename = this.generateDownloadFilename(format);
-            
+
             // 執行下載
             this.performDownload(imageData, filename);
-            
+
             // 顯示成功回饋
             this.showEnhancedDownloadSuccess(`${format.toUpperCase()} 格式圖片下載成功！`);
-            
+
         } catch (error) {
             console.error(`${format} 格式下載失敗:`, error);
             this.showDownloadError(error);
@@ -6636,25 +6899,25 @@ class WatermarkApp {
         if (!this.validateDownloadConditions()) {
             return;
         }
-        
+
         const sizeText = sizeType === 'original' ? '原始尺寸' : '預覽尺寸';
-        
+
         // 顯示下載狀態
         this.showEnhancedDownloadProgress(true, `正在生成${sizeText}圖片...`);
-        
+
         try {
             // 生成指定尺寸的圖片
             const imageData = this.generateImageWithSize(sizeType);
-            
+
             // 生成檔名
             const filename = this.generateDownloadFilename(null, sizeType);
-            
+
             // 執行下載
             this.performDownload(imageData, filename);
-            
+
             // 顯示成功回饋
             this.showEnhancedDownloadSuccess(`${sizeText}圖片下載成功！`);
-            
+
         } catch (error) {
             console.error(`${sizeType} 尺寸下載失敗:`, error);
             this.showDownloadError(error);
@@ -6670,21 +6933,21 @@ class WatermarkApp {
         // 創建匯出 Canvas
         const exportCanvas = document.createElement('canvas');
         const exportContext = exportCanvas.getContext('2d');
-        
+
         // 使用原始圖片尺寸
         exportCanvas.width = this.imageData.originalWidth;
         exportCanvas.height = this.imageData.originalHeight;
-        
+
         // 設定高品質渲染
         exportContext.imageSmoothingEnabled = true;
         exportContext.imageSmoothingQuality = 'high';
-        
+
         // 如果是 JPG 格式，先填充白色背景
         if (format === 'jpg') {
             exportContext.fillStyle = '#ffffff';
             exportContext.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
         }
-        
+
         // 繪製原始圖片
         exportContext.drawImage(
             this.imageData.image,
@@ -6692,20 +6955,20 @@ class WatermarkApp {
             this.imageData.originalWidth,
             this.imageData.originalHeight
         );
-        
+
         // 繪製浮水印
         this.drawWatermarkForExport(exportContext, exportCanvas);
-        
+
         // 決定匯出格式和品質
         const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
         const quality = format === 'jpg' ? 0.92 : 1.0;
-        
+
         console.log(`${format.toUpperCase()} 格式圖片生成完成:`, {
             尺寸: `${exportCanvas.width}x${exportCanvas.height}`,
             格式: mimeType,
             品質: quality
         });
-        
+
         return {
             dataUrl: exportCanvas.toDataURL(mimeType, quality),
             format: mimeType,
@@ -6721,7 +6984,7 @@ class WatermarkApp {
         // 創建匯出 Canvas
         const exportCanvas = document.createElement('canvas');
         const exportContext = exportCanvas.getContext('2d');
-        
+
         // 根據尺寸類型設定 Canvas 大小
         if (sizeType === 'original') {
             exportCanvas.width = this.imageData.originalWidth;
@@ -6730,11 +6993,11 @@ class WatermarkApp {
             exportCanvas.width = this.canvas.width;
             exportCanvas.height = this.canvas.height;
         }
-        
+
         // 設定高品質渲染
         exportContext.imageSmoothingEnabled = true;
         exportContext.imageSmoothingQuality = 'high';
-        
+
         // 繪製圖片
         exportContext.drawImage(
             this.imageData.image,
@@ -6742,7 +7005,7 @@ class WatermarkApp {
             exportCanvas.width,
             exportCanvas.height
         );
-        
+
         // 繪製浮水印
         if (sizeType === 'original') {
             this.drawWatermarkForExport(exportContext, exportCanvas);
@@ -6750,18 +7013,18 @@ class WatermarkApp {
             // 預覽尺寸使用預覽的浮水印設定
             this.drawWatermarkForPreview(exportContext, exportCanvas);
         }
-        
+
         // 使用最佳格式
         const originalFormat = this.detectOriginalImageFormat();
         const exportFormat = this.getOptimalExportFormat(originalFormat);
         const quality = this.getExportQuality(exportFormat);
-        
+
         console.log(`${sizeType} 尺寸圖片生成完成:`, {
             尺寸: `${exportCanvas.width}x${exportCanvas.height}`,
             格式: exportFormat,
             品質: quality
         });
-        
+
         return {
             dataUrl: exportCanvas.toDataURL(exportFormat, quality),
             format: exportFormat,
@@ -6776,38 +7039,38 @@ class WatermarkApp {
     drawWatermarkForPreview(context, canvas) {
         const text = this.watermarkConfig.text?.trim();
         if (!text) return;
-        
+
         // 儲存上下文狀態
         context.save();
-        
+
         try {
             // 使用預覽的字體大小和設定
             const fontFamily = 'Arial, "Microsoft JhengHei", "PingFang TC", "Helvetica Neue", sans-serif';
-            
+
             // 設定浮水印樣式
             context.font = `${this.watermarkConfig.fontSize}px ${fontFamily}`;
             context.fillStyle = this.watermarkConfig.color;
             context.globalAlpha = this.watermarkConfig.opacity;
             context.textAlign = 'center';
             context.textBaseline = 'middle';
-            
+
             // 設定陰影效果
             context.shadowColor = 'rgba(0, 0, 0, 0.3)';
             context.shadowBlur = 2;
             context.shadowOffsetX = 1;
             context.shadowOffsetY = 1;
-            
+
             // 使用當前的浮水印位置
             let x = this.watermarkConfig.x;
             let y = this.watermarkConfig.y;
-            
+
             // 如果沒有自訂位置，使用預設位置計算
             if (x === 0 && y === 0) {
                 const textMetrics = context.measureText(text);
                 const textWidth = textMetrics.width;
                 const textHeight = this.watermarkConfig.fontSize;
                 const margin = 20;
-                
+
                 switch (this.watermarkConfig.position) {
                     case 'bottom-right':
                     default:
@@ -6817,10 +7080,10 @@ class WatermarkApp {
                     // 其他位置的計算...
                 }
             }
-            
+
             // 繪製浮水印文字
             context.fillText(text, x, y);
-            
+
         } finally {
             context.restore();
         }
@@ -6834,13 +7097,13 @@ class WatermarkApp {
         const downloadOptionsBtn = this.elements.downloadOptionsBtn;
         const downloadStatus = this.elements.downloadStatus;
         const downloadStatusText = this.elements.downloadStatusText;
-        
+
         if (show) {
             // 保存原始按鈕內容
             if (!downloadBtn.dataset.originalContent) {
                 downloadBtn.dataset.originalContent = downloadBtn.innerHTML;
             }
-            
+
             // 顯示載入狀態
             downloadBtn.disabled = true;
             downloadOptionsBtn.disabled = true;
@@ -6849,14 +7112,14 @@ class WatermarkApp {
                 處理中...
             `;
             downloadBtn.classList.add('btn-loading');
-            
+
             // 顯示狀態指示器
             downloadStatus.classList.remove('d-none');
             downloadStatusText.textContent = message;
-            
+
             // 隱藏成功指示器
             this.elements.downloadSuccess.classList.add('d-none');
-            
+
         } else {
             // 恢復按鈕狀態
             downloadBtn.disabled = false;
@@ -6866,7 +7129,7 @@ class WatermarkApp {
                 下載圖片
             `;
             downloadBtn.classList.remove('btn-loading');
-            
+
             // 隱藏狀態指示器
             downloadStatus.classList.add('d-none');
         }
@@ -6879,26 +7142,26 @@ class WatermarkApp {
         // 顯示成功指示器
         const downloadSuccess = this.elements.downloadSuccess;
         const downloadSuccessText = this.elements.downloadSuccessText;
-        
+
         downloadSuccess.classList.remove('d-none');
         downloadSuccessText.textContent = message;
-        
+
         // 自動隱藏成功訊息
         setTimeout(() => {
             downloadSuccess.classList.add('d-none');
         }, 5000);
-        
+
         // 顯示 Toast
         this.showToast(message, 'success');
-        
+
         // 按鈕成功動畫
         const downloadBtn = this.elements.downloadBtn;
         downloadBtn.classList.add('btn-success-flash');
-        
+
         setTimeout(() => {
             downloadBtn.classList.remove('btn-success-flash');
         }, 1000);
-        
+
         console.log('下載成功回饋已顯示:', message);
     }
 
@@ -6910,10 +7173,10 @@ class WatermarkApp {
         if (this.elements.downloadOptionsBtn) {
             this.elements.downloadOptionsBtn.disabled = false;
         }
-        
+
         // 同時啟用手機版下載功能
         this.enableMobileDownloadFeatures();
-        
+
         console.log('下載功能已啟用');
     }
 
@@ -6925,7 +7188,7 @@ class WatermarkApp {
         if (this.elements.downloadOptionsBtn) {
             this.elements.downloadOptionsBtn.disabled = true;
         }
-        
+
         console.log('下載功能已停用');
     }
 
@@ -6943,7 +7206,7 @@ class WatermarkApp {
                 }
             }, 250);
         });
-        
+
         console.log('響應式處理器設定完成');
     }
 
@@ -6953,27 +7216,27 @@ class WatermarkApp {
     checkEmbeddedMode() {
         // 基本 iframe 檢測
         const isInIframe = window.self !== window.top;
-        
+
         // 進階嵌入環境檢測
         const embedDetection = this.detectEmbedEnvironment();
-        
+
         // 更新嵌入狀態
         this.isEmbedded = isInIframe || embedDetection.isEmbedded;
         this.embedInfo = embedDetection;
-        
+
         if (this.isEmbedded) {
             // 添加嵌入模式樣式類
             document.body.classList.add('embedded-mode');
-            
+
             // 調整嵌入模式介面
             this.adjustEmbeddedInterface();
-            
+
             // 移除不必要的元素
             this.removeUnnecessaryElements();
-            
+
             // 設定嵌入模式特定功能
             this.setupEmbeddedFeatures();
-            
+
             console.log('嵌入模式已啟用', this.embedInfo);
         } else {
             console.log('獨立模式運行');
@@ -6998,7 +7261,7 @@ class WatermarkApp {
             if (window.self !== window.top) {
                 detection.isEmbedded = true;
                 detection.embedType = 'iframe';
-                
+
                 // 嘗試獲取父頁面資訊
                 try {
                     detection.parentDomain = window.parent.location.hostname;
@@ -7006,7 +7269,7 @@ class WatermarkApp {
                 } catch (e) {
                     // 跨域限制，無法訪問父頁面
                     detection.hasParentAccess = false;
-                    
+
                     // 從 referrer 獲取父域名
                     if (document.referrer) {
                         try {
@@ -7028,7 +7291,7 @@ class WatermarkApp {
             };
 
             // 如果視窗明顯小於螢幕，可能是嵌入的
-            if (viewport.width < viewport.screenWidth * 0.8 || 
+            if (viewport.width < viewport.screenWidth * 0.8 ||
                 viewport.height < viewport.screenHeight * 0.8) {
                 detection.viewportConstraints = viewport;
             }
@@ -7118,44 +7381,44 @@ class WatermarkApp {
     setupEmbeddedFeatures() {
         // 調整最小高度以適應嵌入容器
         this.adjustMinimumHeight();
-        
+
         // 設定 postMessage 通訊（如果需要）
         this.setupPostMessageCommunication();
-        
+
         // 防止影響父頁面的樣式
         this.preventParentPageInterference();
-        
+
         // 優化嵌入模式的使用者體驗
         this.optimizeEmbeddedUX();
-        
+
         // 動態調整嵌入模式佈局
         this.dynamicEmbeddedLayoutAdjustment();
-        
+
         // 增強的 postMessage 通訊機制
         this.enhancedPostMessageCommunication();
-        
+
         // 增強的父頁面保護措施
         this.enhancedParentPageProtection();
-        
+
         // 嵌入模式錯誤處理
         this.embeddedModeErrorHandling();
-        
+
         // 嵌入模式效能優化
         this.embeddedModePerformanceOptimization();
-        
+
         // 嵌入模式無障礙設計增強
         this.embeddedModeAccessibilityEnhancement();
-        
+
         // 監聽視窗大小變化以動態調整佈局
         window.addEventListener('resize', () => {
             this.dynamicEmbeddedLayoutAdjustment();
         });
-        
+
         // 監聽頁面卸載事件以清理資源
         window.addEventListener('beforeunload', () => {
             this.cleanupEmbeddedMode();
         });
-        
+
         console.log('嵌入模式特定功能已設定');
     }
 
@@ -7166,7 +7429,7 @@ class WatermarkApp {
         // 設定最小高度以確保功能完整性
         const minHeight = Math.max(500, window.innerHeight);
         document.body.style.minHeight = `${minHeight}px`;
-        
+
         // 調整主要內容區域
         const main = document.querySelector('main');
         if (main) {
@@ -7233,7 +7496,7 @@ class WatermarkApp {
         if (this.embedInfo.parentDomain) {
             return origin.includes(this.embedInfo.parentDomain);
         }
-        
+
         // 如果沒有特定限制，允許所有來源（在生產環境中應該更嚴格）
         return true;
     }
@@ -7261,10 +7524,10 @@ class WatermarkApp {
         if (data.height) {
             document.body.style.height = `${data.height}px`;
         }
-        
+
         // 觸發響應式佈局更新
         this.updateResponsiveLayout();
-        
+
         console.log('容器大小已調整:', data);
     }
 
@@ -7388,7 +7651,7 @@ class WatermarkApp {
             const saved = localStorage.getItem('watermark-preferences');
             if (saved) {
                 const preferences = JSON.parse(saved);
-                
+
                 if (preferences.type !== undefined) {
                     const typeRadio = document.querySelector(`input[name="watermark-type"][value="${preferences.type}"]`);
                     if (typeRadio) {
@@ -7396,24 +7659,24 @@ class WatermarkApp {
                         this.watermarkConfig.type = preferences.type;
                     }
                 }
-                
+
                 if (preferences.presetType !== undefined && this.elements.presetSelect) {
                     this.elements.presetSelect.value = preferences.presetType;
                     this.watermarkConfig.presetType = preferences.presetType;
                 }
-                
+
                 if (preferences.opacity !== undefined) {
                     this.elements.opacityRange.value = preferences.opacity * 100;
                     this.watermarkConfig.opacity = preferences.opacity;
                     this.elements.opacityValue.textContent = (preferences.opacity * 100) + '%';
                 }
-                
+
                 if (preferences.fontSize !== undefined) {
                     this.elements.fontsizeRange.value = preferences.fontSize;
                     this.watermarkConfig.fontSize = preferences.fontSize;
                     this.elements.fontsizeValue.textContent = preferences.fontSize + 'px';
                 }
-                
+
                 if (preferences.position !== undefined) {
                     const positionRadio = document.querySelector(`input[name="position"][value="${preferences.position}"]`);
                     if (positionRadio) {
@@ -7421,7 +7684,7 @@ class WatermarkApp {
                         this.watermarkConfig.position = preferences.position;
                     }
                 }
-                
+
                 console.log('使用者偏好設定已載入');
             }
         } catch (error) {
@@ -7441,7 +7704,7 @@ class WatermarkApp {
                 fontSize: this.watermarkConfig.fontSize,
                 position: this.watermarkConfig.position
             };
-            
+
             localStorage.setItem('watermark-preferences', JSON.stringify(preferences));
             console.log('使用者偏好設定已儲存');
         } catch (error) {
@@ -7463,7 +7726,7 @@ class WatermarkApp {
         } = options;
 
         const spinner = this.elements.loadingSpinner;
-        
+
         if (!spinner) {
             console.warn('載入指示器元素不存在');
             return;
@@ -7477,35 +7740,35 @@ class WatermarkApp {
                 cancelAction,
                 type
             });
-            
+
             // 顯示載入指示器
             spinner.classList.remove('d-none');
             spinner.classList.add('fade-in');
-            
+
             // 設定持續性
             if (persistent) {
                 spinner.setAttribute('data-persistent', 'true');
             } else {
                 spinner.removeAttribute('data-persistent');
             }
-            
+
             // 防止背景互動
             this.setBackgroundInteraction(false);
-            
+
             console.log(`載入狀態已顯示: ${message}`);
-            
+
         } else {
             // 隱藏載入指示器
             spinner.classList.add('d-none');
             spinner.classList.remove('fade-in');
             spinner.removeAttribute('data-persistent');
-            
+
             // 恢復背景互動
             this.setBackgroundInteraction(true);
-            
+
             // 清除載入狀態
             this.clearLoadingState();
-            
+
             console.log('載入狀態已隱藏');
         }
     }
@@ -7524,7 +7787,7 @@ class WatermarkApp {
 
         const spinner = this.elements.loadingSpinner;
         const cardBody = spinner.querySelector('.card-body');
-        
+
         if (!cardBody) return;
 
         // 建立載入內容
@@ -7594,7 +7857,7 @@ class WatermarkApp {
      */
     setBackgroundInteraction(enabled) {
         const body = document.body;
-        
+
         if (enabled) {
             body.classList.remove('loading-active');
             body.style.pointerEvents = '';
@@ -7603,7 +7866,7 @@ class WatermarkApp {
             body.classList.add('loading-active');
             body.style.pointerEvents = 'none';
             body.style.userSelect = 'none';
-            
+
             // 載入指示器本身保持可互動
             const spinner = this.elements.loadingSpinner;
             if (spinner) {
@@ -7621,7 +7884,7 @@ class WatermarkApp {
             clearTimeout(this.loadingTimeout);
             this.loadingTimeout = null;
         }
-        
+
         if (this.progressInterval) {
             clearInterval(this.progressInterval);
             this.progressInterval = null;
@@ -7633,7 +7896,7 @@ class WatermarkApp {
      */
     showProgressLoading(message, totalSteps = 100) {
         let currentStep = 0;
-        
+
         this.showLoading(true, message, {
             showProgress: true,
             progress: 0,
@@ -7646,13 +7909,13 @@ class WatermarkApp {
         // 模擬進度更新
         this.progressInterval = setInterval(() => {
             currentStep += Math.random() * 10;
-            
+
             if (currentStep >= totalSteps) {
                 currentStep = totalSteps;
                 clearInterval(this.progressInterval);
                 this.progressInterval = null;
             }
-            
+
             this.updateLoadingProgress(currentStep, totalSteps);
         }, 200);
 
@@ -7674,17 +7937,17 @@ class WatermarkApp {
     updateLoadingProgress(current, total) {
         const progress = Math.round((current / total) * 100);
         const spinner = this.elements.loadingSpinner;
-        
+
         if (!spinner) return;
 
         const progressBar = spinner.querySelector('.progress-bar');
         const progressText = spinner.querySelector('small.text-muted');
-        
+
         if (progressBar) {
             progressBar.style.width = `${progress}%`;
             progressBar.setAttribute('aria-valuenow', progress);
         }
-        
+
         if (progressText) {
             progressText.textContent = `進度: ${progress}%`;
         }
@@ -7715,7 +7978,7 @@ class WatermarkApp {
         const toast = new bootstrap.Toast(toastElement, {
             delay: duration
         });
-        
+
         toast.show();
 
         // 自動清理
@@ -7760,22 +8023,22 @@ class WatermarkApp {
      */
     cancelCurrentOperation() {
         console.log('使用者取消了當前操作');
-        
+
         // 取消檔案讀取
         if (this.currentFileReader) {
             this.currentFileReader.abort();
             this.currentFileReader = null;
         }
-        
+
         // 取消圖片載入
         if (this.currentImageLoad) {
             this.currentImageLoad.src = '';
             this.currentImageLoad = null;
         }
-        
+
         // 重置狀態
         this.resetUploadState();
-        
+
         // 顯示取消訊息
         this.showInfoMessage('操作已取消');
     }
@@ -7802,7 +8065,7 @@ class WatermarkApp {
         if (existingAlert) {
             existingAlert.remove();
         }
-        
+
         const alert = document.createElement('div');
         alert.className = `alert alert-${type} alert-dismissible fade show`;
         alert.innerHTML = `
@@ -7810,16 +8073,16 @@ class WatermarkApp {
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
+
         const container = document.querySelector('.container');
         container.insertBefore(alert, container.firstChild);
-        
+
         setTimeout(() => {
             if (alert.parentNode) {
                 alert.remove();
             }
         }, 5000);
-        
+
         console.log(`${type.toUpperCase()}: ${message}`);
     }
 
@@ -7828,14 +8091,14 @@ class WatermarkApp {
      */
     loadImageFromUrl(imageUrl) {
         this.showLoadingSpinner('載入外部圖片...');
-        
+
         const img = new Image();
         img.crossOrigin = 'anonymous'; // 處理跨域圖片
-        
+
         img.onload = () => {
             this.hideLoadingSpinner();
             this.handleImageLoad(img);
-            
+
             // 通知父頁面圖片載入成功
             if (this.isEmbedded) {
                 this.sendMessageToParent({
@@ -7848,11 +8111,11 @@ class WatermarkApp {
                 });
             }
         };
-        
+
         img.onerror = () => {
             this.hideLoadingSpinner();
             this.showToast('無法載入外部圖片', 'error');
-            
+
             // 通知父頁面圖片載入失敗
             if (this.isEmbedded) {
                 this.sendMessageToParent({
@@ -7864,7 +8127,7 @@ class WatermarkApp {
                 });
             }
         };
-        
+
         img.src = imageUrl;
     }
 
@@ -7873,13 +8136,13 @@ class WatermarkApp {
      */
     loadImageFromData(imageData) {
         this.showLoadingSpinner('載入圖片資料...');
-        
+
         const img = new Image();
-        
+
         img.onload = () => {
             this.hideLoadingSpinner();
             this.handleImageLoad(img);
-            
+
             // 通知父頁面圖片載入成功
             if (this.isEmbedded) {
                 this.sendMessageToParent({
@@ -7892,11 +8155,11 @@ class WatermarkApp {
                 });
             }
         };
-        
+
         img.onerror = () => {
             this.hideLoadingSpinner();
             this.showToast('無法載入圖片資料', 'error');
-            
+
             // 通知父頁面圖片載入失敗
             if (this.isEmbedded) {
                 this.sendMessageToParent({
@@ -7908,7 +8171,7 @@ class WatermarkApp {
                 });
             }
         };
-        
+
         // 支援 Base64 和 Blob URL
         if (typeof imageData === 'string') {
             img.src = imageData;
@@ -7933,21 +8196,21 @@ class WatermarkApp {
 
         // 設定 Canvas
         this.setupCanvas(img);
-        
+
         // 顯示控制面板
         this.elements.controlPanel.classList.remove('d-none');
-        
+
         // 更新預覽
         this.updatePreview();
-        
+
         // 啟用下載功能
         this.enableDownloadFeatures();
-        
+
         // 如果是手機版，啟用手機版下載功能
         if (document.body.classList.contains('mobile-layout')) {
             this.enableMobileDownloadFeatures();
         }
-        
+
         console.log('圖片載入完成:', {
             尺寸: `${img.naturalWidth}x${img.naturalHeight}`,
             類型: img.src.substring(0, 20) + '...'
@@ -8132,9 +8395,9 @@ class WatermarkApp {
 
         // 防止全域事件監聽器影響父頁面
         const originalAddEventListener = window.addEventListener;
-        window.addEventListener = function(type, listener, options) {
+        window.addEventListener = function (type, listener, options) {
             // 確保事件不會冒泡到父頁面
-            const wrappedListener = function(event) {
+            const wrappedListener = function (event) {
                 event.stopPropagation();
                 return listener.call(this, event);
             };

@@ -79,33 +79,21 @@ https://[你的用戶名].github.io/[儲存庫名稱]/
    ```
 3. GitHub Pages 會自動重新部署
 
-## 本地開發
+## 本地預覽
 
-如果需要在本地開發和測試：
+如果需要在本地預覽網站：
 
-1. 安裝依賴（僅用於測試）：
-   ```bash
-   npm install
-   ```
+```bash
+# 使用 Python 內建伺服器
+cd docs
+python -m http.server 8000
 
-2. 運行測試：
-   ```bash
-   npm test
-   ```
+# 使用 PHP 內建伺服器
+cd docs
+php -S localhost:8000
 
-3. 本地預覽（使用任何靜態檔案伺服器）：
-   ```bash
-   # 使用 Python
-   cd docs
-   python -m http.server 8000
-   
-   # 使用 Node.js (需要安裝 http-server)
-   npx http-server docs -p 8000
-   
-   # 使用 PHP
-   cd docs
-   php -S localhost:8000
-   ```
+# 然後在瀏覽器開啟 http://localhost:8000
+```
 
 ## 效能優化
 
